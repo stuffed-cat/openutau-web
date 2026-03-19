@@ -38,6 +38,10 @@ export async function getProjectInfo(file: File) {
   });
 }
 
+export function downloadSession() {
+  return requestBlob('/api/project/management/session/download');
+}
+
 export async function renderProject(file: File, format = 'wav') {
   return requestBlob('/api/project/Render/mixdown', {
     method: 'POST',

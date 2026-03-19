@@ -1,7 +1,9 @@
 import { computed, reactive, ref, watch } from 'vue';
 import {
+  addTrack,
   addNote,
   createNewProject,
+  downloadSession,
   getNoteProperties,
   getPartProperties,
   getProjectInfo,
@@ -63,7 +65,6 @@ const globalSelectedPart = ref<PartProperties | null>(null);
 const globalSelectedNote = ref<NoteProperties | null>(null);
 const globalSelectedTrackFlags = ref<TrackFlag[]>([]);
 const globalSelectedTrackExpressions = ref<Array<{ name: string; abbr: string; type: string; min: number; max: number; defaultValue: number; isFlag: boolean; flag?: string | null }>>([]);
-const persistedTrackCount = ref(0);
 
 export function useOpenUtau() {
   const state = globalState;
@@ -72,6 +73,24 @@ export function useOpenUtau() {
   const selectedNote = globalSelectedNote;
   const selectedTrackFlags = globalSelectedTrackFlags;
   const selectedTrackExpressions = globalSelectedTrackExpressions;
+
+  async function performAddTrack() {
+    if (!state.currentFile) {
+      state.error = '请先打开工程后再添加轨道';
+      return;
+    }
+    state.busy = true;
+    state.error = null;
+    try {
+      const blob = await addTrack(state.currentFile);
+      state.currentFile = blobToFile(blob, state.currentFile.name);
+      await reloadProjectState();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
 
   const projectTitle = computed(() => state.currentFile?.name ?? (state.projectLoaded ? '新工程' : '未打开工程'));
   const hasProject = computed(() => state.projectLoaded);
@@ -105,7 +124,6 @@ export function useOpenUtau() {
   async function loadProjectSummary(file: File) {
     const summary = await getProjectInfo(file);
     state.projectInfo = normalizeProjectSummary(summary);
-    persistedTrackCount.value = state.projectInfo.tracks.length;
     state.tracks = await loadTrackDetails(state.projectInfo.tracks.length);
     state.parts = await loadPartDetails(state.projectInfo.parts.length);
     if (state.tracks.length > 0 && state.selectedTrackNo < 0) {
@@ -162,7 +180,6 @@ export function useOpenUtau() {
       state.projectInfo = null;
       state.tracks = [];
       state.parts = [];
-      persistedTrackCount.value = 1;
       selectedTrack.value = null;
       selectedPart.value = null;
       selectedNote.value = null;
@@ -248,32 +265,6 @@ export function useOpenUtau() {
     }
   }
 
-  function patchLocalTrack(trackNo: number, patch: Partial<TrackProperties>) {
-    const current = state.tracks[trackNo];
-    if (current) {
-      state.tracks.splice(trackNo, 1, {
-        ...current,
-        ...patch,
-      });
-      if (state.selectedTrackNo === trackNo) {
-        selectedTrack.value = state.tracks[trackNo];
-      }
-      return;
-    }
-    state.tracks.splice(trackNo, 0, {
-      trackNo,
-      trackName: `Track${trackNo + 1}`,
-      singer: null,
-      phonemizer: null,
-      renderer: null,
-      mute: false,
-      solo: false,
-      volume: 0,
-      pan: 0,
-      ...patch,
-    });
-  }
-
   async function loadSelectedPart() {
     if (state.selectedPartNo < 0) {
       selectedPart.value = null;
@@ -334,129 +325,69 @@ export function useOpenUtau() {
     }
   }
 
-  async function toggleMute(trackNo: number, mute: boolean) {
-    if (trackNo >= persistedTrackCount.value) {
-      patchLocalTrack(trackNo, { mute });
-      if (state.selectedTrackNo === trackNo) {
-        selectedTrack.value = state.tracks[trackNo] ?? null;
-      }
-      return;
+  async function reloadProjectState() {
+    if (!state.currentFile) return;
+    try {
+      const summary = await getProjectInfo(state.currentFile);
+      state.projectInfo = normalizeProjectSummary(summary);
+      state.tracks = await loadTrackDetails(state.projectInfo.tracks.length);
+      state.parts = await loadPartDetails(state.projectInfo.parts.length);
+      await refreshSelection();
+    } catch (error) {
+      state.error = toMessage(error);
     }
+  }
+
+  async function syncSessionState() {
+    try {
+      const sessionBlob = await downloadSession();
+      state.currentFile = blobToFile(sessionBlob, state.currentFile?.name ?? 'Untitled.ustx');
+      await reloadProjectState();
+    } catch (error) {
+      state.error = toMessage(error);
+    }
+  }
+
+  async function toggleMute(trackNo: number, mute: boolean) {
     try {
       await setTrackMute(trackNo, mute);
-      if (state.tracks[trackNo]) {
-        patchLocalTrack(trackNo, { mute });
-      }
-      await loadSelectedTrack();
+      await syncSessionState();
     } catch (error) {
-      patchLocalTrack(trackNo, { mute });
       state.error = toMessage(error);
     }
   }
 
   async function toggleSolo(trackNo: number, solo: boolean) {
-    if (trackNo >= persistedTrackCount.value) {
-      patchLocalTrack(trackNo, { solo });
-      if (state.selectedTrackNo === trackNo) {
-        selectedTrack.value = state.tracks[trackNo] ?? null;
-      }
-      return;
-    }
     try {
       await setTrackSolo(trackNo, solo);
-      if (state.tracks[trackNo]) {
-        patchLocalTrack(trackNo, { solo });
-      }
-      await loadSelectedTrack();
+      await syncSessionState();
     } catch (error) {
-      patchLocalTrack(trackNo, { solo });
       state.error = toMessage(error);
     }
   }
 
   async function updatePan(trackNo: number, pan: number) {
-    if (trackNo >= persistedTrackCount.value) {
-      patchLocalTrack(trackNo, { pan });
-      if (state.selectedTrackNo === trackNo) {
-        selectedTrack.value = state.tracks[trackNo] ?? null;
-      }
-      return;
-    }
     try {
       await setTrackPan(trackNo, pan);
-      patchLocalTrack(trackNo, { pan });
-      await loadSelectedTrack();
+      await syncSessionState();
     } catch (error) {
-      patchLocalTrack(trackNo, { pan });
       state.error = toMessage(error);
     }
   }
 
   async function updateVolume(trackNo: number, volume: number) {
-    if (trackNo >= persistedTrackCount.value) {
-      patchLocalTrack(trackNo, { volume });
-      if (state.selectedTrackNo === trackNo) {
-        selectedTrack.value = state.tracks[trackNo] ?? null;
-      }
-      return;
-    }
     try {
       await setTrackVolume(trackNo, volume);
-      patchLocalTrack(trackNo, { volume });
-      await loadSelectedTrack();
+      await syncSessionState();
     } catch (error) {
-      patchLocalTrack(trackNo, { volume });
       state.error = toMessage(error);
     }
   }
 
   async function updateSinger(trackNo: number, singer: string) {
-    if (trackNo >= persistedTrackCount.value) {
-      patchLocalTrack(trackNo, { singer });
-      if (trackNo === state.tracks.length - 1 && singer) {
-        const newTrackNo = state.tracks.length;
-        patchLocalTrack(newTrackNo, {
-          trackNo: newTrackNo,
-          trackName: `Track${newTrackNo + 1}`,
-          singer: null,
-          phonemizer: null,
-          renderer: null,
-          mute: false,
-          solo: false,
-          volume: 0,
-          pan: 0,
-        });
-      }
-      if (state.selectedTrackNo === trackNo) {
-        selectedTrack.value = state.tracks[trackNo] ?? null;
-      }
-      return;
-    }
     try {
       await setTrackSinger(trackNo, singer);
-      const updatedTrack = await getTrackProperties(trackNo);
-      patchLocalTrack(trackNo, updatedTrack);
-
-      if (state.selectedTrackNo === trackNo) {
-        selectedTrack.value = updatedTrack;
-        selectedTrackFlags.value = (await getTrackFlags(trackNo)).flags;
-        selectedTrackExpressions.value = await loadTrackExpressions(trackNo);
-      }
-
-      if (singer && trackNo === state.tracks.length - 1) {
-        const newTrackNo = state.tracks.length;
-        patchLocalTrack(newTrackNo, {
-          trackNo: newTrackNo,
-          trackName: `Track${newTrackNo + 1}`,
-          singer: null,
-          phonemizer: null,
-          renderer: null,
-          mute: false,
-          solo: false,
-          volume: 0,
-          pan: 0,
-        });
-      }
+      await syncSessionState();
     } catch (error) {
       state.error = toMessage(error);
     }
@@ -465,7 +396,7 @@ export function useOpenUtau() {
   async function updateColor(trackNo: number, color: string) {
     try {
       await setTrackColor(trackNo, color);
-      await reloadProject();
+      await syncSessionState();
     } catch (error) {
       state.error = toMessage(error);
     }
@@ -475,10 +406,8 @@ export function useOpenUtau() {
     if (state.selectedTrackNo < 0) return;
     try {
       await renameTrack(state.selectedTrackNo, name);
-      patchLocalTrack(state.selectedTrackNo, { trackName: name });
-      await reloadProject();
+      await syncSessionState();
     } catch (error) {
-      patchLocalTrack(state.selectedTrackNo, { trackName: name });
       state.error = toMessage(error);
     }
   }
@@ -647,6 +576,7 @@ export function useOpenUtau() {
     stopProjectPlayback,
     seekProject,
     toggleSingerManager,
+    performAddTrack,
   };
 }
 
