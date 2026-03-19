@@ -26,12 +26,12 @@ function onScroll(e: Event) {
 
 <template>
   <div class="parts-container" @scroll="onScroll">
-    <div class="parts-content">
+    <div class="parts-content" :style="{ height: `${Math.max(state.tracks.length, 20) * TRACK_HEIGHT}px` }">
       <!-- Render grid background lines (timeline split) -->
       <div class="grid-bg"></div>
 
       <!-- Render track background stripes -->
-      <div class="track-bg" :style="{ minHeight: `${state.tracks.length * TRACK_HEIGHT}px` }">
+      <div class="track-bg">
         <div 
           v-for="i in Math.max(state.tracks.length, 20)" 
           :key="i"
