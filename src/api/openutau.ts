@@ -212,6 +212,10 @@ export function getSingerInfo(id: string) {
   return requestJson<any>(`/api/singers/${encodeURIComponent(id)}/info`);
 }
 
+export function getSingerOtos(id: string) {
+  return requestJson<any[]>(`/api/singers/${encodeURIComponent(id)}/otos`);
+}
+
 export function installPackage(file: File, exeType?: 'wavtool' | 'resampler' | '') {
   const fd = new FormData();
   fd.append('file', file);
