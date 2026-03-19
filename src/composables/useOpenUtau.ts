@@ -14,6 +14,8 @@ import {
   play,
   removeNote,
   renderProject,
+  undo,
+  redo,
   renameTrack,
   seek,
   setTrackColor,
@@ -125,6 +127,24 @@ export function useOpenUtau() {
       state.error = toMessage(error);
     } finally {
       state.busy = false;
+    }
+  }
+
+  async function performUndo() {
+    try {
+      await undo();
+      await reloadProject();
+    } catch (error) {
+      state.error = toMessage(error);
+    }
+  }
+
+  async function performRedo() {
+    try {
+      await redo();
+      await reloadProject();
+    } catch (error) {
+      state.error = toMessage(error);
     }
   }
 
@@ -428,6 +448,8 @@ export function useOpenUtau() {
     refreshSystemInfo,
     openProjectFile,
     createProjectSession,
+    performUndo,
+    performRedo,
     reloadProject,
     refreshSelection,
     selectTrack,

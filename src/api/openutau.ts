@@ -168,6 +168,18 @@ export function removeNote(file: File, payload: {
   });
 }
 
+// ============== HISTORY =================
+
+export function undo() {
+  return requestJson<{ message: string }>('/api/history/undo', { method: 'POST' });
+}
+
+export function redo() {
+  return requestJson<{ message: string }>('/api/history/redo', { method: 'POST' });
+}
+
+// ============== PLAYBACK =================
+
 export function play(tick?: number, endTick?: number, trackNo?: number) {
   return requestJson<PlaybackStatus>('/api/playback/play', {
     method: 'POST',
