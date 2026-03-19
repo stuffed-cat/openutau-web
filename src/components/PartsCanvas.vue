@@ -27,6 +27,9 @@ function onScroll(e: Event) {
 <template>
   <div class="parts-container" @scroll="onScroll">
     <div class="parts-content">
+      <!-- Render grid background lines (timeline split) -->
+      <div class="grid-bg"></div>
+
       <!-- Render track background stripes -->
       <div class="track-bg" :style="{ minHeight: `${state.tracks.length * TRACK_HEIGHT}px` }">
         <div 
@@ -67,6 +70,35 @@ function onScroll(e: Event) {
   min-height: 100%;
 }
 
+.grid-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-image: 
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0px, rgba(255, 255, 255, 0.1) 1px, transparent 1px, transparent 96px),
+    repeating-linear-gradient(90deg, transparent 0px, transparent 24px, rgba(255, 255, 255, 0.03) 24px, rgba(255, 255, 255, 0.03) 25px);
+  /* The first gradient draws solid lines for measures every 96px */
+  /* The second gradient draws dashed/faint lines for beats, let's just make them faint lines for now (or a dashed pattern) */
+  /* Wait, linear-gradient dashed lines are complex, adjusting alpha is cleaner: 96px is measure, 24px is beat */
+}
+
+/* Let's redefine grid-bg accurately */
+.grid-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  /* SVG background defining 1 measure (96px) with 4 beats. Measure line is solid, beat lines are dashed */
+  background-image: url("data:image/svg+xml,%3Csvg width='96' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 0v8M48 0v8M72 0v8' stroke='rgba(255,255,255,0.1)' stroke-dasharray='4 4' fill='none'/%3E%3Cpath d='M0 0v8' stroke='rgba(255,255,255,0.25)' fill='none'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
 .track-bg {
   position: absolute;
   top: 0;
@@ -74,6 +106,7 @@ function onScroll(e: Event) {
   right: 0;
   bottom: 0;
   pointer-events: none;
+  z-index: -1;
 }
 
 .track-stripe {

@@ -21,7 +21,11 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } =
       </div>
     </div>
     <div class="timeline-canvas r1 c1">
-      <div class="timeline-ticks" :style="{ backgroundPosition: `-${state.scrollX}px 0` }"></div>
+      <div class="timeline-ticks" :style="{ backgroundPosition: `-${state.scrollX}px 100%` }">
+        <div class="timeline-labels" :style="{ transform: `translateX(-${state.scrollX}px)` }">
+          <div v-for="i in 100" :key="i" class="timeline-label" :style="{ left: `${(i-1)*96}px` }">{{ i }}</div>
+        </div>
+      </div>
     </div>
     <div class="view-scaler r1 c2"></div>
 
@@ -120,11 +124,28 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } =
 
 .timeline-ticks {
   position: absolute;
+  top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 8px;
-  background: repeating-linear-gradient(90deg, transparent, transparent 49px, var(--ou-tick-line) 49px, var(--ou-tick-line) 50px);
+  background-image: url("data:image/svg+xml,%3Csvg width='96' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 0v8M48 0v8M72 0v8' stroke='rgba(255,255,255,0.1)' stroke-dasharray='4 4' fill='none'/%3E%3Cpath d='M0 0v8' stroke='rgba(255,255,255,0.3)' fill='none'/%3E%3C/svg%3E");
+  background-position: 0 100%;
+  background-repeat: repeat-x;
+}
+
+.timeline-labels {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.timeline-label {
+  position: absolute;
+  font-size: 10px;
+  color: var(--ou-fg);
+  transform: translateX(2px);
 }
 
 .view-scaler {
