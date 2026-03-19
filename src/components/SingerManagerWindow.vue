@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, nextTick } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
-import { getSingers, getSingerOtos } from '../api/openutau';
+import { getSingers, getSingerOtos, getOtoSampleFile, analyzeWaveform } from '../api/openutau';
 
 const { toggleSingerManager } = useOpenUtau();
 
@@ -10,6 +10,11 @@ const otos = ref<any[]>([]);
 const selectedSingerId = ref<string | null>(null);
 const loading = ref(false);
 const error = ref<string | null>(null);
+
+const selectedOto = ref<any>(null);
+const audioCanvas = ref<HTMLCanvasElement | null>(null);
+const isAudioLoading = ref(false);
+const audioDurationMs = ref(1000);
 
 const selectedSinger = computed(() => 
   singers.value.find(s => s.id === selectedSingerId.value) || null
@@ -42,6 +47,7 @@ async function loadOtos(id: string) {
 
 watch(selectedSingerId, (newId) => {
   if (newId) {
+    selectedOto.value = null;
     loadOtos(newId);
   }
 });
@@ -52,6 +58,114 @@ onMounted(() => {
 
 function getAvatarUrl(singerId: string) {
   return `/api/singers/${encodeURIComponent(singerId)}/image`;
+}
+
+async function onSelectOto(oto: any) {
+  selectedOto.value = oto;
+  if (!oto || !selectedSingerId.value) return;
+
+  isAudioLoading.value = true;
+  try {
+    const blob = await getOtoSampleFile(selectedSingerId.value, oto.set || '', oto.alias || '');
+    
+    // We optionally decode audio purely to measure its accurate duration
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+    audioDurationMs.value = audioBuffer.duration * 1000;
+
+    const waveBlob = new Blob([arrayBuffer], { type: blob.type });
+    const waveData = await analyzeWaveform(waveBlob, 1000);
+
+    await nextTick();
+    drawWaveformAndOto(waveData.maxWaveform, waveData.minWaveform);
+  } catch (e) {
+    console.error("Failed to load or analyze sample", e);
+  } finally {
+    isAudioLoading.value = false;
+  }
+}
+
+function drawWaveformAndOto(maxArr: number[], minArr: number[]) {
+  if (!audioCanvas.value) return;
+  const canvas = audioCanvas.value;
+  const parent = canvas.parentElement;
+  if (parent) {
+     canvas.width = parent.clientWidth;
+     canvas.height = parent.clientHeight;
+  }
+  
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  
+  const w = canvas.width;
+  const h = canvas.height;
+  
+  ctx.clearRect(0, 0, w, h);
+  
+  if (maxArr && maxArr.length > 0) {
+    const centerY = h / 2;
+    const scaleY = h / 2;
+    
+    ctx.fillStyle = '#4b6eaf';
+    ctx.beginPath();
+    for (let i = 0; i < maxArr.length; i++) {
+       const x = (i / maxArr.length) * w;
+       const y = centerY - (maxArr[i] * scaleY);
+       if (i === 0) ctx.moveTo(x, y);
+       else ctx.lineTo(x, y);
+    }
+    for (let i = minArr.length - 1; i >= 0; i--) {
+       const x = (i / minArr.length) * w;
+       const y = centerY - (minArr[i] * scaleY);
+       ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  const oto = selectedOto.value;
+  if (oto && audioDurationMs.value > 0) {
+    const total = audioDurationMs.value;
+    const offsetMs = oto.offset || 0;
+    const consMs = offsetMs + (oto.consonant || 0);
+    const preMs = offsetMs + (oto.preutter || 0);
+    const ovlMs = offsetMs + (oto.overlap || 0);
+    
+    let cutoffMs = oto.cutoff || 0;
+    if (cutoffMs < 0) {
+      cutoffMs = total + cutoffMs;
+    } else {
+      cutoffMs = offsetMs + cutoffMs;
+    }
+    
+    const drawLine = (ms: number, color: string) => {
+      const x = (ms / total) * w;
+      ctx.strokeStyle = color;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    };
+
+    const drawRect = (msStart: number, msEnd: number, color: string) => {
+      const xStart = (msStart / total) * w;
+      const xEnd = (msEnd / total) * w;
+      ctx.fillStyle = color;
+      ctx.fillRect(xStart, 0, xEnd - xStart, h);
+    };
+
+    // Draw parameters
+    drawRect(0, offsetMs, 'rgba(0, 0, 0, 0.4)'); // Before Offset
+    if (cutoffMs > 0 && cutoffMs < total) {
+      drawRect(cutoffMs, total, 'rgba(255, 0, 0, 0.2)'); // After Cutoff
+    }
+    
+    drawLine(offsetMs, '#00f');   // Offset: Blue
+    drawLine(consMs, '#f0f');     // Consonant: Pink
+    drawLine(preMs, '#f00');      // Preutter: Red
+    drawLine(ovlMs, '#0f0');      // Overlap: Green
+    if (cutoffMs > 0 && cutoffMs < total) {
+      drawLine(cutoffMs, '#00f'); // Cutoff: Blue
+    }
+  }
 }
 </script>
 
@@ -71,7 +185,7 @@ function getAvatarUrl(singerId: string) {
           <!-- Left side: Avatar + Combobox + Info -->
           <div class="top-left">
             <div class="avatar-block">
-              <img v-if="selectedSingerId" :src="getAvatarUrl(selectedSingerId)" @error="$event.target.style.display='none'" />
+              <img v-if="selectedSingerId" :src="getAvatarUrl(selectedSingerId)" @error="($event.target as HTMLImageElement).style.display='none'" />
             </div>
             <div class="info-block">
               <select class="ou-select" v-model="selectedSingerId">
@@ -146,7 +260,9 @@ function getAvatarUrl(singerId: string) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(oto, i) in otos" :key="i">
+                  <tr v-for="(oto, i) in otos" :key="i"
+                      :class="{ selected: selectedOto === oto }"
+                      @click="onSelectOto(oto)">
                     <td>{{ oto.alias }}</td>
                     <td>{{ oto.set }}</td>
                     <td>{{ oto.file }}</td>
@@ -167,11 +283,15 @@ function getAvatarUrl(singerId: string) {
 
         <div class="h-splitter"></div>
 
-        <!-- Bottom Pane (Placeholder for waveform) -->
+        <!-- Bottom Pane (Waveform rendered via Backend Analysis API) -->
         <div class="pane bottom-pane">
-           <div class="bottom-placeholder">
-             [ 波形/频谱预览区在Web端开发中... (Waveform/Spectrogram viewport is under development) ]
+           <div v-if="!selectedOto" class="bottom-placeholder">
+             [ 请在上方选择一个 OTO 别名预览波形 ]
            </div>
+           <div v-else-if="isAudioLoading" class="bottom-placeholder">
+             正在通过后端分析音频波形...
+           </div>
+           <canvas v-show="selectedOto && !isAudioLoading" ref="audioCanvas" width="1050" height="240"></canvas>
         </div>
 
       </div>
@@ -284,11 +404,20 @@ function getAvatarUrl(singerId: string) {
   height: 240px; min-height: 240px;
   border: 1px solid var(--ou-border, #ccc);
   background: var(--ou-bg-alt, #fafafa);
-  display: grid; place-items: center;
+  display: flex; justify-content: center; align-items: center;
+  position: relative;
+  overflow: hidden;
+
+  canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
 }
 
 .bottom-placeholder {
   color: #888;
+  z-index: 1;
 }
 
 .h-splitter {
@@ -350,7 +479,8 @@ function getAvatarUrl(singerId: string) {
     padding: 2px 5px; white-space: nowrap;
   }
   tr:nth-child(even) { background: rgba(0,0,0,0.02); }
-  tr:hover { background: rgba(0,120,215,0.1); }
+  tr:hover { background: rgba(0,120,215,0.1); cursor: pointer; }
+  tr.selected { background: rgba(0, 120, 215, 0.3) !important; }
 }
 
 @media (prefers-color-scheme: dark) {

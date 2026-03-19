@@ -227,3 +227,29 @@ export function installPackage(file: File, exeType?: 'wavtool' | 'resampler' | '
     body: fd,
   });
 }
+
+export function getOtoSampleFile(id: string, set: string, alias: string) {
+  return requestBlob(`/api/singers/${encodeURIComponent(id)}/otos/sample`, {
+    query: { set, alias }
+  });
+}
+
+export function analyzeWaveform(file: Blob, points = 1000) {
+  const fd = new FormData();
+  fd.append('file', file, 'sample.wav');
+  return requestJson<any>('/api/analysis/waveform', {
+    method: 'POST',
+    body: fd,
+    query: { points }
+  });
+}
+
+export function analyzeSpectrogram(file: Blob, fftSize = 1024, hopSize = 512) {
+  const fd = new FormData();
+  fd.append('file', file, 'sample.wav');
+  return requestJson<any>('/api/analysis/spectrogram', {
+    method: 'POST',
+    body: fd,
+    query: { fftSize, hopSize }
+  });
+}
