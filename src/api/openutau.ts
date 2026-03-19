@@ -86,8 +86,12 @@ export function setTrackVolume(trackNo: number, volume: number) {
   });
 }
 
-export function addTrack() {
-  return http.post<void>(`/api/tracks/add`);
+export function addTrack(file: File, trackIndex?: number) {
+  return requestBlob('/api/project/tracks/add', {
+    method: 'POST',
+    body: toFormData(file),
+    query: { trackIndex: trackIndex ?? undefined },
+  });
 }
 
 export function renameTrack(trackNo: number, name: string) {

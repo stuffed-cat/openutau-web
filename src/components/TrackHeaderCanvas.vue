@@ -113,8 +113,8 @@ function closeSingerMenuOnEsc(e: KeyboardEvent) {
   }
 }
 
-function selectSinger(singerId: string, trackNo: number) {
-  updateSinger(trackNo, singerId);
+async function selectSinger(singerId: string, trackNo: number) {
+  await updateSinger(trackNo, singerId);
   closeSingerMenu();
 }
 
@@ -158,7 +158,7 @@ function formatPan(pan: number): string {
               />
               <div v-else class="avatar-placeholder">👤</div>
             </div>
-            <div class="track-no-badge">{{ String(track.trackNo + 1).padStart(2, '0') }}</div>
+            <div class="track-no-badge">{{ track.trackNo + 1 }}</div>
           </div>
 
           <!-- Column 1: Info Grid (matching official Grid ColumnDefinitions="*,auto" RowDefinitions="auto,auto") -->
@@ -656,7 +656,7 @@ function formatPan(pan: number): string {
     background: rgba(255, 255, 255, 0.1);
   }
 }
-n.track-adder {
+.track-adder {
   height: 104px;
   width: 100%;
   display: flex;

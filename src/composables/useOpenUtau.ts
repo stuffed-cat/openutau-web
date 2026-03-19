@@ -65,8 +65,21 @@ const globalSelectedTrackExpressions = ref<Array<{ name: string; abbr: string; t
 
 export function useOpenUtau() {
   async function performAddTrack() {
-    await addTrack();
-    await reloadProject();
+    if (!state.currentFile) {
+      state.error = '请先打开工程后再添加轨道';
+      return;
+    }
+    state.busy = true;
+    state.error = null;
+    try {
+      const blob = await addTrack(state.currentFile);
+      state.currentFile = blobToFile(blob, state.currentFile.name);
+      await reloadProject();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
   }
   const state = globalState;
   const selectedTrack = globalSelectedTrack;
@@ -322,8 +335,26 @@ export function useOpenUtau() {
   }
 
   async function updateSinger(trackNo: number, singer: string) {
-    await setTrackSinger(trackNo, singer);
-    await reloadProject();
+    try {
+      await setTrackSinger(trackNo, singer);
+      const updatedTrack = await getTrackProperties(trackNo);
+      if (state.tracks[trackNo]) {
+        state.tracks.splice(trackNo, 1, {
+          ...state.tracks[trackNo],
+          ...updatedTrack,
+        });
+      } else {
+        state.tracks[trackNo] = updatedTrack;
+      }
+
+      if (state.selectedTrackNo === trackNo) {
+        selectedTrack.value = updatedTrack;
+        selectedTrackFlags.value = (await getTrackFlags(trackNo)).flags;
+        selectedTrackExpressions.value = await loadTrackExpressions(trackNo);
+      }
+    } catch (error) {
+      state.error = toMessage(error);
+    }
   }
 
   async function updateColor(trackNo: number, color: string) {
