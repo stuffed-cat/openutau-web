@@ -151,4 +151,5 @@ export interface OpenUtauAppState {
   selectedPartNo: number;
   selectedNoteIndex: number;
   currentFile: File | null;
+  projectLoaded: boolean;
 }

@@ -2,7 +2,7 @@
 import { useOpenUtau } from '../composables/useOpenUtau';
 import { ref } from 'vue';
 
-const { projectTitle, createProjectSession, openProjectFile, exportMixdown } = useOpenUtau();
+const { projectTitle, createProjectSession, openProjectFile, exportMixdown, hasProject } = useOpenUtau();
 const fileInput = ref<HTMLInputElement | null>(null);
 
 function handleFile() {
@@ -24,11 +24,11 @@ function onFileSelect(e: Event) {
     <div class="menu">
       <button class="menu-item" @click="createProjectSession">File</button>
       <button class="menu-item" @click="handleFile">Open</button>
-      <button class="menu-item" @click="exportMixdown('wav')">Export</button>
-      <button class="menu-item disabled">Edit</button>
-      <button class="menu-item disabled">View</button>
-      <button class="menu-item disabled">Tools</button>
-      <button class="menu-item disabled">Help</button>
+      <button class="menu-item" @click="exportMixdown('wav')" :class="{ disabled: !hasProject }">Export</button>
+      <button class="menu-item" :class="{ disabled: !hasProject }">Edit</button>
+      <button class="menu-item">View</button>
+      <button class="menu-item">Tools</button>
+      <button class="menu-item">Help</button>
     </div>
     <div class="title">{{ projectTitle }} - OpenUtau</div>
     <div class="controls">

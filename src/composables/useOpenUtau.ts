@@ -48,19 +48,27 @@ function createState(): OpenUtauAppState {
     selectedPartNo: -1,
     selectedNoteIndex: -1,
     currentFile: null,
+    projectLoaded: false,
   });
 }
 
-export function useOpenUtau() {
-  const state = createState();
-  const selectedTrack = ref<TrackProperties | null>(null);
-  const selectedPart = ref<PartProperties | null>(null);
-  const selectedNote = ref<NoteProperties | null>(null);
-  const selectedTrackFlags = ref<TrackFlag[]>([]);
-  const selectedTrackExpressions = ref<Array<{ name: string; abbr: string; type: string; min: number; max: number; defaultValue: number; isFlag: boolean; flag?: string | null }>>([]);
+const globalState = createState();
+const globalSelectedTrack = ref<TrackProperties | null>(null);
+const globalSelectedPart = ref<PartProperties | null>(null);
+const globalSelectedNote = ref<NoteProperties | null>(null);
+const globalSelectedTrackFlags = ref<TrackFlag[]>([]);
+const globalSelectedTrackExpressions = ref<Array<{ name: string; abbr: string; type: string; min: number; max: number; defaultValue: number; isFlag: boolean; flag?: string | null }>>([]);
 
-  const projectTitle = computed(() => state.currentFile?.name ?? '未打开工程');
-  const hasProject = computed(() => state.tracks.length > 0 || state.parts.length > 0);
+export function useOpenUtau() {
+  const state = globalState;
+  const selectedTrack = globalSelectedTrack;
+  const selectedPart = globalSelectedPart;
+  const selectedNote = globalSelectedNote;
+  const selectedTrackFlags = globalSelectedTrackFlags;
+  const selectedTrackExpressions = globalSelectedTrackExpressions;
+
+  const projectTitle = computed(() => state.currentFile?.name ?? (state.projectLoaded ? '新工程' : '未打开工程'));
+  const hasProject = computed(() => state.projectLoaded);
   const selectedTrackSummary = computed(() => state.tracks[state.selectedTrackNo] ?? null);
   const selectedPartSummary = computed(() => state.parts[state.selectedPartNo] ?? null);
 
@@ -112,6 +120,7 @@ export function useOpenUtau() {
       await openProject(file);
       await loadProjectSummary(file);
       await refreshSelection();
+      state.projectLoaded = true;
     } catch (error) {
       state.error = toMessage(error);
     } finally {
@@ -136,6 +145,7 @@ export function useOpenUtau() {
       state.selectedTrackNo = -1;
       state.selectedPartNo = -1;
       state.selectedNoteIndex = -1;
+      state.projectLoaded = true;
     } catch (error) {
       state.error = toMessage(error);
     } finally {

@@ -19,7 +19,7 @@ export function getSystemInfo() {
 }
 
 export function createNewProject() {
-  return requestJson<{ message: string }>('/api/project/management/new', {
+  return requestJson<{ message: string }>('/api/project/new', {
     method: 'POST',
   });
 }
@@ -32,14 +32,14 @@ export async function openProject(file: File) {
 }
 
 export async function getProjectInfo(file: File) {
-  return requestJson<ProjectSummary>('/api/project/projectinfo', {
+  return requestJson<ProjectSummary>('/api/project/ProjectInfo', {
     method: 'POST',
     body: toFormData(file),
   });
 }
 
 export async function renderProject(file: File, format = 'wav') {
-  return requestBlob('/api/project/render', {
+  return requestBlob('/api/project/Render/mixdown', {
     method: 'POST',
     body: toFormData(file),
     query: { format },
@@ -87,21 +87,21 @@ export function setTrackVolume(trackNo: number, volume: number) {
 }
 
 export function renameTrack(trackNo: number, name: string) {
-  return requestJson(`/api/project/track/${trackNo}/rename`, {
+  return requestJson(`/api/project/tracks/${trackNo}/rename`, {
     method: 'POST',
     query: { name },
   });
 }
 
 export function setTrackSinger(trackNo: number, singerName: string) {
-  return requestJson(`/api/project/track/${trackNo}/setsinger`, {
+  return requestJson(`/api/project/tracks/${trackNo}/setsinger`, {
     method: 'POST',
     query: { singerName },
   });
 }
 
 export function setTrackColor(trackNo: number, color: string) {
-  return requestJson(`/api/project/track/${trackNo}/setcolor`, {
+  return requestJson(`/api/project/tracks/${trackNo}/setcolor`, {
     method: 'POST',
     query: { color },
   });

@@ -1,4 +1,4 @@
-const baseUrl = (import.meta.env.VITE_OPENUTAU_API_BASE_URL ?? 'http://localhost:5000').replace(/\/$/, '');
+const baseUrl = (import.meta.env.VITE_OPENUTAU_API_BASE_URL ?? '').replace(/\/$/, '');
 const apiKey = import.meta.env.VITE_OPENUTAU_API_KEY ?? '';
 const apiKeyHeader = import.meta.env.VITE_OPENUTAU_API_KEY_HEADER ?? 'X-Api-Key';
 
@@ -8,7 +8,11 @@ export interface RequestOptions extends RequestInit {
 
 function buildUrl(path: string, query?: RequestOptions['query']) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const url = new URL(`${baseUrl}${normalizedPath}`);
+  
+  // Use window.location.origin as base for relative URLs 
+  const base = baseUrl || window.location.origin;
+  const url = new URL(`${baseUrl}${normalizedPath}`, base);
+  
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value === null || value === undefined || value === '') continue;
