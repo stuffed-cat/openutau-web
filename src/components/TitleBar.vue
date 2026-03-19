@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import { installPackage } from '../api/openutau';
 
-const { projectTitle, createProjectSession, openProjectFile, exportMixdown, hasProject, performUndo, performRedo } = useOpenUtau();
+const { projectTitle, createProjectSession, openProjectFile, exportMixdown, hasProject, performUndo, performRedo, toggleSingerManager } = useOpenUtau();
 const fileInput = ref<HTMLInputElement | null>(null);
 const packageInput = ref<HTMLInputElement | null>(null);
 let installType: 'singer' | 'oudep' | 'wavtool' | 'resampler' | '' = '';
@@ -103,7 +103,7 @@ async function onPackageSelect(e: Event) {
           <div class="dropdown-item">调试窗口</div>
           <div class="dropdown-item">语音学助手</div>
           <div class="dropdown-divider"></div>
-          <div class="dropdown-item">歌手...</div>
+          <div class="dropdown-item" @click="toggleSingerManager(true)">歌手...</div>
           <div class="dropdown-item" @click="triggerInstall('singer')">安装歌手...</div>
           <div class="dropdown-item" @click="triggerInstall('oudep')">安装依赖项 (.oudep) ...</div>
           <div class="dropdown-item" @click="triggerInstall('wavtool')">安装 Wavtool (.exe/.sh)...</div>

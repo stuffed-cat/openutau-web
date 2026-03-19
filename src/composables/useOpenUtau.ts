@@ -51,6 +51,7 @@ function createState(): OpenUtauAppState {
     selectedNoteIndex: -1,
     currentFile: null,
     projectLoaded: false,
+    showSingerManager: false,
   });
 }
 
@@ -412,6 +413,10 @@ export function useOpenUtau() {
     await seek(tick);
   }
 
+  function toggleSingerManager(show?: boolean) {
+    state.showSingerManager = show ?? !state.showSingerManager;
+  }
+
   watch(
     () => state.selectedTrackNo,
     () => {
@@ -470,6 +475,7 @@ export function useOpenUtau() {
     pauseProject,
     stopProjectPlayback,
     seekProject,
+    toggleSingerManager,
   };
 }
 

@@ -152,4 +152,5 @@ export interface OpenUtauAppState {
   selectedNoteIndex: number;
   currentFile: File | null;
   projectLoaded: boolean;
+  showSingerManager: boolean;
 }

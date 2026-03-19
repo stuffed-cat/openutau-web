@@ -4,6 +4,7 @@ import { useOpenUtau } from './composables/useOpenUtau';
 import TitleBar from './components/TitleBar.vue';
 import WelcomePage from './components/WelcomePage.vue';
 import EditorLayout from './components/EditorLayout.vue';
+import SingerManagerWindow from './components/SingerManagerWindow.vue';
 
 const {
   state,
@@ -34,6 +35,8 @@ async function handleFileDrop(event: DragEvent) {
       <WelcomePage v-if="!hasProject" />
       <EditorLayout v-else />
     </div>
+    
+    <SingerManagerWindow v-if="state.showSingerManager" />
   </div>
 </template>
 
