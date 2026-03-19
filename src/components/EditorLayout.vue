@@ -2,13 +2,12 @@
 import { useOpenUtau } from '../composables/useOpenUtau';
 import TrackHeaderCanvas from './TrackHeaderCanvas.vue';
 import PartsCanvas from './PartsCanvas.vue';
-import PianoRollWindow from './PianoRollWindow.vue';
 
-const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown, closePartEditor } = useOpenUtau();
+const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } = useOpenUtau();
 </script>
 
 <template>
-  <div class="main-page-container" :class="{ 'piano-roll-open': state.showPianoRoll }">
+  <div class="main-page-container">
     <!-- Row 0: Top Scrollbar area (Placeholder) -->
     <div class="h-scrollbar r0 c1"></div>
 
@@ -22,7 +21,7 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown, cl
       </div>
     </div>
     <div class="timeline-canvas r1 c1">
-      <div class="timeline-ticks"></div>
+      <div class="timeline-ticks" :style="{ backgroundPosition: `-${state.scrollX}px 0` }"></div>
     </div>
     <div class="view-scaler r1 c2"></div>
 
@@ -39,42 +38,18 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown, cl
     <!-- Row 3: Splitter -->
     <div class="grid-splitter r3 c0-span"></div>
 
-    <template v-if="state.showPianoRoll">
-      <div class="piano-roll-container r4 c0-span">
-        <div class="piano-roll-header">
-          <span>Piano Roll</span>
-          <button @click="closePartEditor">关闭</button>
-        </div>
-        <PianoRollWindow />
-      </div>
+    <!-- Row 4: Status text -->
+    <div class="status-bar r4 c0-span">
+      <span>{{ state.busy ? 'Rendering/Loading...' : 'Ready' }}</span>
+      <span v-if="state.systemInfo" style="margin-left: 10px; color: #777;">
+        v{{ state.systemInfo.version.openUtau }}
+      </span>
+    </div>
 
-      <!-- Row 5: Status text -->
-      <div class="status-bar r5 c0-span">
-        <span>{{ state.busy ? 'Rendering/Loading...' : 'Ready' }}</span>
-        <span v-if="state.systemInfo" style="margin-left: 10px; color: #777;">
-          v{{ state.systemInfo.version.openUtau }}
-        </span>
-      </div>
-
-      <!-- Row 6: Progress bar -->
-      <div class="progress-bar r6 c0-span">
-        <div class="progress-fill" :style="{ width: state.busy ? '100%' : '0%' }"></div>
-      </div>
-    </template>
-    <template v-else>
-      <!-- Row 4: Status text -->
-      <div class="status-bar r4 c0-span">
-        <span>{{ state.busy ? 'Rendering/Loading...' : 'Ready' }}</span>
-        <span v-if="state.systemInfo" style="margin-left: 10px; color: #777;">
-          v{{ state.systemInfo.version.openUtau }}
-        </span>
-      </div>
-
-      <!-- Row 5: Progress bar -->
-      <div class="progress-bar r5 c0-span">
-        <div class="progress-fill" :style="{ width: state.busy ? '100%' : '0%' }"></div>
-      </div>
-    </template>
+    <!-- Row 5: Progress bar -->
+    <div class="progress-bar r5 c0-span">
+      <div class="progress-fill" :style="{ width: state.busy ? '100%' : '0%' }"></div>
+    </div>
   </div>
 </template>
 
@@ -95,7 +70,6 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown, cl
 .r3 { grid-row: 4; }
 .r4 { grid-row: 5; }
 .r5 { grid-row: 6; }
-.r6 { grid-row: 7; }
 
 .c0 { grid-column: 1; }
 .c1 { grid-column: 2; }
@@ -181,34 +155,6 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown, cl
   cursor: row-resize;
   border-top: 1px solid var(--ou-border);
   border-bottom: 1px solid var(--ou-border);
-}
-
-.piano-roll-open {
-  grid-template-rows: 24px 24px 1fr 6px 220px 20px 4px;
-}
-
-.piano-roll-container {
-  background: var(--ou-bg);
-  border-top: 1px solid var(--ou-border);
-  border-bottom: 1px solid var(--ou-border);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.piano-roll-header {
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--ou-border);
-  font-size: 11px;
-}
-
-.piano-roll-header button {
-  height: 20px;
-  font-size: 11px;
 }
 
 .status-bar {

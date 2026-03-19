@@ -1,7 +1,6 @@
 import { computed, reactive, ref, watch } from 'vue';
 import {
   addNote,
-  addPart,
   createNewProject,
   getNoteProperties,
   getPartProperties,
@@ -49,11 +48,12 @@ function createState(): OpenUtauAppState {
     parts: [],
     selectedTrackNo: -1,
     selectedPartNo: -1,
+    scrollX: 0,
+    scrollY: 0,
     selectedNoteIndex: -1,
     currentFile: null,
     projectLoaded: false,
     showSingerManager: false,
-    showPianoRoll: false,
   });
 }
 
@@ -218,18 +218,6 @@ export function useOpenUtau() {
     state.selectedNoteIndex = -1;
     await loadSelectedPart();
     await loadSelectedNote();
-  }
-
-  async function openPartEditor(partNo: number) {
-    state.selectedPartNo = partNo;
-    state.selectedNoteIndex = -1;
-    state.showPianoRoll = true;
-    await loadSelectedPart();
-    await loadSelectedNote();
-  }
-
-  function closePartEditor() {
-    state.showPianoRoll = false;
   }
 
   async function selectNote(noteIndex: number) {
@@ -474,33 +462,6 @@ export function useOpenUtau() {
     }
   }
 
-  async function addPartToTrack(trackNo: number, position: number, duration = 1920) {
-    if (!state.currentFile) {
-      state.error = '请先打开工程后再添加小节';
-      return;
-    }
-    state.busy = true;
-    state.error = null;
-    try {
-      const blob = await addPart(state.currentFile, {
-        trackIndex: trackNo,
-        position,
-        duration,
-      });
-      state.currentFile = blobToFile(blob, state.currentFile.name);
-      await reloadProject();
-
-      const lastMatched = [...state.parts].reverse().find(part => part.trackNo === trackNo && part.position === position);
-      if (lastMatched) {
-        await openPartEditor(lastMatched.partNo);
-      }
-    } catch (error) {
-      state.error = toMessage(error);
-    } finally {
-      state.busy = false;
-    }
-  }
-
   async function updateColor(trackNo: number, color: string) {
     try {
       await setTrackColor(trackNo, color);
@@ -686,10 +647,6 @@ export function useOpenUtau() {
     stopProjectPlayback,
     seekProject,
     toggleSingerManager,
-    showPianoRoll: state.showPianoRoll,
-    openPartEditor,
-    closePartEditor,
-    addPartToTrack,
   };
 }
 

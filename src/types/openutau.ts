@@ -149,11 +149,12 @@ export interface OpenUtauAppState {
   parts: PartProperties[];
   selectedTrackNo: number;
   selectedPartNo: number;
+  scrollX: number;
+  scrollY: number;
   selectedNoteIndex: number;
   currentFile: File | null;
   projectLoaded: boolean;
   showSingerManager: boolean;
-  showPianoRoll: boolean;
 }
 
 export interface USinger {

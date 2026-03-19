@@ -1,20 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { PartProperties } from '../types/openutau';
 
-const { state, selectPart, addPartToTrack, openPartEditor } = useOpenUtau();
+const { state, selectPart } = useOpenUtau();
 
-const TRACK_HEIGHT = 105; // Match OpenUtau TrackHeight default
+const TRACK_HEIGHT = 64; // Same as TrackHeaderCanvas
 const PIXELS_PER_TICK = 0.05; // Zoom scale simulation
-const partsScroll = ref<HTMLDivElement | null>(null);
-
-const contentWidth = computed(() => {
-  const maxEnd = state.parts.reduce((max, part) => Math.max(max, part.position + part.duration), 0);
-  return Math.max(2000, Math.ceil(maxEnd * PIXELS_PER_TICK) + 400);
-});
-
-const contentHeight = computed(() => Math.max(state.tracks.length, 1) * TRACK_HEIGHT);
 
 function getPartStyle(part: PartProperties) {
   return {
@@ -25,54 +17,34 @@ function getPartStyle(part: PartProperties) {
   };
 }
 
-async function handleBackgroundClick(event: MouseEvent) {
-  if (event.target !== event.currentTarget) return;
-  const container = partsScroll.value;
-  if (!container) return;
-  const rect = container.getBoundingClientRect();
-  const x = event.clientX - rect.left + container.scrollLeft;
-  const y = event.clientY - rect.top + container.scrollTop;
-  const trackNo = Math.floor(y / TRACK_HEIGHT);
-  if (trackNo < 0 || trackNo >= state.tracks.length) return;
-  const position = Math.max(0, Math.floor(x / PIXELS_PER_TICK));
-  await addPartToTrack(trackNo, position);
-}
-
-function handlePartClick(part: PartProperties) {
-  void selectPart(part.partNo);
-}
-
-function handlePartDoubleClick(part: PartProperties) {
-  void openPartEditor(part.partNo);
+function onScroll(e: Event) {
+  const target = e.target as HTMLElement;
+  state.scrollX = target.scrollLeft;
+  state.scrollY = target.scrollTop;
 }
 </script>
 
 <template>
-  <div class="parts-scroll" ref="partsScroll">
-    <div
-      class="parts-canvas"
-      :style="{ width: `${contentWidth}px`, height: `${contentHeight}px` }"
-      @click="handleBackgroundClick"
-    >
+  <div class="parts-container" @scroll="onScroll">
+    <div class="parts-content">
       <!-- Render track background stripes -->
-      <div class="track-bg">
-        <div
-          v-for="i in Math.max(state.tracks.length, 20)"
+      <div class="track-bg" :style="{ minHeight: `${state.tracks.length * TRACK_HEIGHT}px` }">
+        <div 
+          v-for="i in Math.max(state.tracks.length, 20)" 
           :key="i"
           class="track-stripe"
           :style="{ height: `${TRACK_HEIGHT}px` }"
         ></div>
       </div>
-
+      
       <!-- Render Parts -->
-      <div
-        v-for="part in state.parts"
+      <div 
+        v-for="part in state.parts" 
         :key="part.partNo"
         class="part-block"
         :class="{ selected: state.selectedPartNo === part.partNo }"
         :style="getPartStyle(part)"
-        @click.stop="handlePartClick(part)"
-        @dblclick.stop="handlePartDoubleClick(part)"
+        @click="selectPart(part.partNo)"
       >
         <span class="part-name">{{ part.name || `Part ${part.partNo}` }}</span>
         <div class="part-waveform"></div>
@@ -82,16 +54,17 @@ function handlePartDoubleClick(part: PartProperties) {
 </template>
 
 <style scoped lang="scss">
-.parts-scroll {
+.parts-container {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: auto; /* Handles both X and Y scrolling */
 }
 
-.parts-canvas {
+.parts-content {
   position: relative;
-  min-width: 100%;
+  min-width: 5000px; /* Force horizontal scroll */
+  min-height: 100%;
 }
 
 .track-bg {
@@ -99,6 +72,7 @@ function handlePartDoubleClick(part: PartProperties) {
   top: 0;
   left: 0;
   right: 0;
+  bottom: 0;
   pointer-events: none;
 }
 

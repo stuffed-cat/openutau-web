@@ -135,7 +135,7 @@ function formatPan(pan: number): string {
 </script>
 
 <template>
-  <div class="track-header-list">
+  <div class="track-header-list" :style="{ transform: `translateY(-${state.scrollY}px)` }">
     <div
       v-for="track in state.tracks"
       :key="track.trackNo"
