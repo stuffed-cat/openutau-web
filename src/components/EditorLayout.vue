@@ -4,11 +4,11 @@ import TrackHeaderCanvas from './TrackHeaderCanvas.vue';
 import PartsCanvas from './PartsCanvas.vue';
 import PianoRollWindow from './PianoRollWindow.vue';
 
-const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } = useOpenUtau();
+const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown, closePartEditor } = useOpenUtau();
 </script>
 
 <template>
-  <div class="main-page-container">
+  <div class="main-page-container" :class="{ 'piano-roll-open': state.showPianoRoll }">
     <!-- Row 0: Top Scrollbar area (Placeholder) -->
     <div class="h-scrollbar r0 c1"></div>
 
@@ -39,23 +39,42 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } =
     <!-- Row 3: Splitter -->
     <div class="grid-splitter r3 c0-span"></div>
 
-    <!-- Row 4: Piano Roll Container -->
-    <div class="piano-roll-container r4 c0-span">
-      <PianoRollWindow />
-    </div>
+    <template v-if="state.showPianoRoll">
+      <div class="piano-roll-container r4 c0-span">
+        <div class="piano-roll-header">
+          <span>Piano Roll</span>
+          <button @click="closePartEditor">关闭</button>
+        </div>
+        <PianoRollWindow />
+      </div>
 
-    <!-- Row 5: Status text -->
-    <div class="status-bar r5 c0-span">
-      <span>{{ state.busy ? 'Rendering/Loading...' : 'Ready' }}</span>
-      <span v-if="state.systemInfo" style="margin-left: 10px; color: #777;">
-        v{{ state.systemInfo.version.openUtau }}
-      </span>
-    </div>
+      <!-- Row 5: Status text -->
+      <div class="status-bar r5 c0-span">
+        <span>{{ state.busy ? 'Rendering/Loading...' : 'Ready' }}</span>
+        <span v-if="state.systemInfo" style="margin-left: 10px; color: #777;">
+          v{{ state.systemInfo.version.openUtau }}
+        </span>
+      </div>
 
-    <!-- Row 6: Progress bar -->
-    <div class="progress-bar r6 c0-span">
-      <div class="progress-fill" :style="{ width: state.busy ? '100%' : '0%' }"></div>
-    </div>
+      <!-- Row 6: Progress bar -->
+      <div class="progress-bar r6 c0-span">
+        <div class="progress-fill" :style="{ width: state.busy ? '100%' : '0%' }"></div>
+      </div>
+    </template>
+    <template v-else>
+      <!-- Row 4: Status text -->
+      <div class="status-bar r4 c0-span">
+        <span>{{ state.busy ? 'Rendering/Loading...' : 'Ready' }}</span>
+        <span v-if="state.systemInfo" style="margin-left: 10px; color: #777;">
+          v{{ state.systemInfo.version.openUtau }}
+        </span>
+      </div>
+
+      <!-- Row 5: Progress bar -->
+      <div class="progress-bar r5 c0-span">
+        <div class="progress-fill" :style="{ width: state.busy ? '100%' : '0%' }"></div>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -63,7 +82,7 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } =
 .main-page-container {
   display: grid;
   grid-template-columns: 260px 1fr 24px;
-  grid-template-rows: 24px 24px 1fr 6px 1fr 20px 4px;
+  grid-template-rows: 24px 24px 1fr 6px 20px 4px;
   height: 100%;
   width: 100%;
   background: var(--ou-bg);
@@ -164,9 +183,32 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } =
   border-bottom: 1px solid var(--ou-border);
 }
 
+.piano-roll-open {
+  grid-template-rows: 24px 24px 1fr 6px 220px 20px 4px;
+}
+
 .piano-roll-container {
   background: var(--ou-bg);
-  min-height: 0; /* Important for grid */
+  border-top: 1px solid var(--ou-border);
+  border-bottom: 1px solid var(--ou-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.piano-roll-header {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ou-border);
+  font-size: 11px;
+}
+
+.piano-roll-header button {
+  height: 20px;
+  font-size: 11px;
 }
 
 .status-bar {

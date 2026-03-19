@@ -94,6 +94,26 @@ export function addTrack(file: File, trackIndex?: number) {
   });
 }
 
+export function addPart(file: File, payload: {
+  trackIndex: number;
+  position?: number;
+  duration?: number;
+  name?: string;
+  comment?: string;
+}) {
+  return requestBlob('/api/project/parts/add', {
+    method: 'POST',
+    body: toFormData(file),
+    query: {
+      trackIndex: payload.trackIndex,
+      position: payload.position ?? undefined,
+      duration: payload.duration ?? undefined,
+      name: payload.name ?? undefined,
+      comment: payload.comment ?? undefined,
+    },
+  });
+}
+
 export function renameTrack(trackNo: number, name: string) {
   return requestJson(`/api/project/tracks/${trackNo}/rename`, {
     method: 'POST',

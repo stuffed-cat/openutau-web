@@ -153,6 +153,7 @@ export interface OpenUtauAppState {
   currentFile: File | null;
   projectLoaded: boolean;
   showSingerManager: boolean;
+  showPianoRoll: boolean;
 }
 
 export interface USinger {
