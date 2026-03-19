@@ -4,7 +4,7 @@ import { useOpenUtau } from '../composables/useOpenUtau';
 import { getSingers } from '../api/openutau';
 import type { USinger } from '../types/openutau';
 
-const { state, selectTrack, toggleMute, toggleSolo, updateVolume, updatePan, updateSinger } = useOpenUtau();
+const { state, selectTrack, toggleMute, toggleSolo, updateVolume, updatePan, updateSinger, performAddTrack } = useOpenUtau();
 
 const TRACK_HEIGHT = 104;
 const singers = ref<USinger[]>([]);
@@ -158,7 +158,7 @@ function formatPan(pan: number): string {
               />
               <div v-else class="avatar-placeholder">👤</div>
             </div>
-            <div class="track-no-badge">{{ String(track.trackNo).padStart(2, '0') }}</div>
+            <div class="track-no-badge">{{ String(track.trackNo + 1).padStart(2, '0') }}</div>
           </div>
 
           <!-- Column 1: Info Grid (matching official Grid ColumnDefinitions="*,auto" RowDefinitions="auto,auto") -->
@@ -166,13 +166,19 @@ function formatPan(pan: number): string {
             <!-- Row 0: Button Stack -->
             <div class="button-stack">
               <button class="clear-button track-name-button">
-                {{ track.trackName || 'Track' }}
+                {{ track.trackName || `Track ${track.trackNo + 1}` }}
               </button>
               <button 
                 class="clear-button singer-button"
                 @click.stop="openSingerMenu(track.trackNo, $event)"
               >
                 {{ track.singer ? getSingerName(track.singer) : 'Select Singer' }}
+              </button>
+              <button class="clear-button phonemizer-button">
+                {{ track.phonemizer || 'Default Phonemizer' }}
+              </button>
+              <button class="clear-button renderer-button">
+                {{ track.renderer || 'Default Renderer' }}
               </button>
             </div>
 
@@ -227,6 +233,15 @@ function formatPan(pan: number): string {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Official TrackAdder UI -->
+    <div class="track-adder">
+      <button class="track-adder-btn clear-button" @click="performAddTrack">
+        <svg class="track-adder-svg" width="24" height="24" viewBox="0 0 24 24">
+          <path d="M10.61,13.43H2.28V10.57H10.61V2H13.39V10.57H21.72V13.43H13.39V22H10.61Z" fill="currentColor"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Context Menu for Singer Selection -->
@@ -640,5 +655,29 @@ function formatPan(pan: number): string {
   &:hover {
     background: rgba(255, 255, 255, 0.1);
   }
+}
+n.track-adder {
+  height: 104px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-adder-btn {
+  width: 60px;
+  height: 30px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ou-fg-alt, #888);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.track-adder-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 </style>

@@ -1,6 +1,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import {
   addNote,
+  addTrack,
   createNewProject,
   getNoteProperties,
   getPartProperties,
@@ -63,6 +64,10 @@ const globalSelectedTrackFlags = ref<TrackFlag[]>([]);
 const globalSelectedTrackExpressions = ref<Array<{ name: string; abbr: string; type: string; min: number; max: number; defaultValue: number; isFlag: boolean; flag?: string | null }>>([]);
 
 export function useOpenUtau() {
+  async function performAddTrack() {
+    await addTrack();
+    await reloadProject();
+  }
   const state = globalState;
   const selectedTrack = globalSelectedTrack;
   const selectedPart = globalSelectedPart;
@@ -319,20 +324,6 @@ export function useOpenUtau() {
   async function updateSinger(trackNo: number, singer: string) {
     await setTrackSinger(trackNo, singer);
     await reloadProject();
-    
-    // 自动添加新轨道：如果为最后一个轨道分配歌手
-    if (singer && trackNo === state.tracks.length - 1) {
-      const newTrackNo = state.tracks.length;
-      const newTrack: TrackProperties = {
-        trackNo: newTrackNo,
-        trackName: `Track${newTrackNo + 1}`,
-        mute: false,
-        solo: false,
-        volume: 0,
-        pan: 0,
-      };
-      state.tracks.push(newTrack);
-    }
   }
 
   async function updateColor(trackNo: number, color: string) {
@@ -510,6 +501,7 @@ export function useOpenUtau() {
     stopProjectPlayback,
     seekProject,
     toggleSingerManager,
+    performAddTrack,
   };
 }
 
