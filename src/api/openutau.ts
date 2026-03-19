@@ -201,3 +201,25 @@ export function seek(tick: number) {
     query: { tick },
   });
 }
+
+// ============== SINGERS & DEPENDENCIES =================
+
+export function getSingers() {
+  return requestJson<any>('/api/singers');
+}
+
+export function getSingerInfo(id: string) {
+  return requestJson<any>(`/api/singers/${encodeURIComponent(id)}/info`);
+}
+
+export function installPackage(file: File, exeType?: 'wavtool' | 'resampler' | '') {
+  const fd = new FormData();
+  fd.append('file', file);
+  if (exeType) {
+    fd.append('exeType', exeType);
+  }
+  return requestJson<{ message: string }>('/api/packages/install', {
+    method: 'POST',
+    body: fd,
+  });
+}
