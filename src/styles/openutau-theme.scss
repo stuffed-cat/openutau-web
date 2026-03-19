@@ -1,0 +1,32 @@
+$color-background: #303030;
+$color-background-pointer-over: #505050;
+$color-background-pressed: #707070;
+$color-background-disabled: #404040;
+$color-foreground: #E0E0E0;
+$color-foreground-pointer-over: #FCFCFC;
+$color-foreground-pressed: #FFFFFF;
+$color-foreground-disabled: #A0A0A0;
+$color-border: #4a4a4a;
+$color-system-accent: #4EA6EA;
+$color-track-background-alt: #404040;
+$color-tick-line: #505050;
+$color-white-key: #E0E0E0;
+$color-black-key: #252525;
+$color-scrollbar-track: #2b2b2b;
+$color-scrollbar-thumb: #6b6b6b;
+$color-part-bg: rgba(78, 166, 234, 0.4);
+$color-part-border: #4EA6EA;
+
+:root {
+  --ou-bg: #{$color-background};
+  --ou-bg-hover: #{$color-background-pointer-over};
+  --ou-bg-pressed: #{$color-background-pressed};
+  --ou-bg-alt: #{$color-track-background-alt};
+  --ou-fg: #{$color-foreground};
+  --ou-fg-hover: #{$color-foreground-pointer-over};
+  --ou-border: #{$color-border};
+  --ou-accent: #{$color-system-accent};
+  --ou-tick-line: #{$color-tick-line};
+  --ou-white-key: #{$color-white-key};
+  --ou-black-key: #{$color-black-key};
+}
