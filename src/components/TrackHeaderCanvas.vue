@@ -4,7 +4,7 @@ import { useOpenUtau } from '../composables/useOpenUtau';
 import { getSingers } from '../api/openutau';
 import type { USinger } from '../types/openutau';
 
-const { state, selectTrack, toggleMute, toggleSolo, updateVolume, updatePan, updateSinger } = useOpenUtau();
+const { state, selectTrack, toggleMute, toggleSolo, updateVolume, updatePan, updateSinger, performAddTrack } = useOpenUtau();
 
 const TRACK_HEIGHT = 104;
 const singers = ref<USinger[]>([]);
@@ -232,6 +232,17 @@ function formatPan(pan: number): string {
             <button class="toggle-button settings-btn" title="Settings">⚙</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Track Adder -->
+    <div class="track-adder">
+      <div class="border-wrapper">
+        <button class="track-adder-btn clear-button" @click="performAddTrack">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path d="M10.61,13.43H2.28V10.57H10.61V2H13.39V10.57H21.72V13.43H13.39V22H10.61Z" fill="currentColor"/>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -645,6 +656,47 @@ function formatPan(pan: number): string {
 
   &:hover {
     background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.track-adder {
+  height: 104px;
+  width: 100%;
+  background: transparent;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+
+  .border-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    height: 100%;
+  }
+}
+
+.track-adder-btn {
+  width: 60px;
+  height: 30px;
+  border-radius: 4px;
+  color: var(--ou-accent, rgba(255, 255, 255, 0.4));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  cursor: pointer;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--ou-accent, rgba(255, 255, 255, 0.8));
+  }
+  
+  svg {
+    fill: currentColor;
   }
 }
 </style>
