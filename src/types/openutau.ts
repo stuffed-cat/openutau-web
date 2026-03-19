@@ -154,3 +154,12 @@ export interface OpenUtauAppState {
   projectLoaded: boolean;
   showSingerManager: boolean;
 }
+
+export interface USinger {
+  id: string;
+  name: string;
+  author?: string;
+  version?: string;
+  singerType?: string;
+  subbanks?: string[];
+}

@@ -143,12 +143,7 @@ const { state, playProject, pauseProject, stopProjectPlayback, exportMixdown } =
 .track-headers {
   background: var(--ou-bg-alt);
   border-right: 1px solid var(--ou-border);
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.track-headers::-webkit-scrollbar {
-  width: 0;
+  overflow: hidden;
 }
 
 .parts-canvas {

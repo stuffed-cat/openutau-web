@@ -167,6 +167,26 @@ export function useOpenUtau() {
       state.selectedPartNo = -1;
       state.selectedNoteIndex = -1;
       state.projectLoaded = true;
+      
+      // 后端创建新项目时默认有一个 Track1，需要刷新来获取
+      await refreshSystemInfo();
+      
+      // 从后端获取新创建项目的轨道和部分信息
+      // 注意：使用getProjectInfo需要file参数，但新项目没有文件
+      // 所以我们需要使用API直接获取当前项目的轨道信息
+      // 暂时加载一个默认轨道来匹配后端行为
+      const defaultTrack: TrackProperties = {
+        trackNo: 0,
+        trackName: 'Track1',
+        mute: false,
+        solo: false,
+        volume: 0,
+        pan: 0,
+      };
+      state.tracks = [defaultTrack];
+      state.selectedTrackNo = 0;
+      
+      await refreshSelection();
     } catch (error) {
       state.error = toMessage(error);
     } finally {
@@ -299,6 +319,20 @@ export function useOpenUtau() {
   async function updateSinger(trackNo: number, singer: string) {
     await setTrackSinger(trackNo, singer);
     await reloadProject();
+    
+    // 自动添加新轨道：如果为最后一个轨道分配歌手
+    if (singer && trackNo === state.tracks.length - 1) {
+      const newTrackNo = state.tracks.length;
+      const newTrack: TrackProperties = {
+        trackNo: newTrackNo,
+        trackName: `Track${newTrackNo + 1}`,
+        mute: false,
+        solo: false,
+        volume: 0,
+        pan: 0,
+      };
+      state.tracks.push(newTrack);
+    }
   }
 
   async function updateColor(trackNo: number, color: string) {
