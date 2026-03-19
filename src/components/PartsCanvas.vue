@@ -5,7 +5,7 @@ import type { PartProperties } from '../types/openutau';
 
 const { state, selectPart } = useOpenUtau();
 
-const TRACK_HEIGHT = 64; // Same as TrackHeaderCanvas
+const TRACK_HEIGHT = 104; // Same as TrackHeaderCanvas
 const PIXELS_PER_TICK = 0.05; // Zoom scale simulation
 
 function getPartStyle(part: PartProperties) {
@@ -93,7 +93,7 @@ function onScroll(e: Event) {
   right: 0;
   bottom: 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
   /* SVG background defining 1 measure (96px) with 4 beats. Measure line is solid, beat lines are dashed */
   background-image: url("data:image/svg+xml,%3Csvg width='96' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 0v8M48 0v8M72 0v8' stroke='rgba(255,255,255,0.1)' stroke-dasharray='4 4' fill='none'/%3E%3Cpath d='M0 0v8' stroke='rgba(255,255,255,0.25)' fill='none'/%3E%3C/svg%3E");
   background-repeat: repeat;
@@ -106,7 +106,7 @@ function onScroll(e: Event) {
   right: 0;
   bottom: 0;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
 .track-stripe {

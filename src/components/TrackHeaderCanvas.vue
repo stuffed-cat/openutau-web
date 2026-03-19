@@ -315,6 +315,10 @@ function formatPan(pan: number): string {
   display: flex;
   flex-direction: column;
 
+  &:nth-child(odd) {
+    background: var(--ou-bg);
+  }
+
   &:hover {
     background: rgba(255, 255, 255, 0.05);
   }
