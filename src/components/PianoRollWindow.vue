@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { VoiceNoteSummary } from '../types/openutau';
 
-const { state, closePianoRoll, performDrawLinearCurve } = useOpenUtau();
+const { state, closePianoRoll, performDrawLinearCurve, performUpdateCurve } = useOpenUtau();
 
 const NOTE_HEIGHT = 20; // Official defaults to slightly varying height, but let's use 20 usually
 const PIXELS_PER_TICK = 0.05;
@@ -74,22 +74,41 @@ function stopPitchDraw() {
   if (pitchIsDrawing.value) {
     if (pitchDrawPoints.value.length > 1) {
       const points = [...pitchDrawPoints.value];
-      pitchDrawnPaths.value.push(points);
       
-      const startPoint = points[0];
-      const endPoint = points[points.length - 1];
+      points.sort((a, b) => a.x - b.x);
+      let minX = Math.round(points[0].x / PIXELS_PER_TICK);
+      let maxX = Math.round(points[points.length - 1].x / PIXELS_PER_TICK);
+      minX = Math.floor(minX / 5) * 5;
+      maxX = Math.ceil(maxX / 5) * 5;
 
-      // Convert Screen X to Ticks
-      const startX = Math.round(startPoint.x / PIXELS_PER_TICK);
-      const endX = Math.round(endPoint.x / PIXELS_PER_TICK);
+      const xs: number[] = [];
+      const ys: number[] = [];
 
-      // Convert Screen Y to Tone Curve (-1000 to 1000 standard deviation range)
-      // Note: This mapping is arbitrary for visual feedback, usually backend expects ticks and actual tone deltas
-      // For now we pass a linear mapping for the pitch curve (PITD).
-      const startY = Math.round((KEYS * NOTE_HEIGHT - startPoint.y) * 10);
-      const endY = Math.round((KEYS * NOTE_HEIGHT - endPoint.y) * 10);
+      for (let t = minX; t <= maxX; t += 5) {
+        const px = t * PIXELS_PER_TICK;
+        let y_screen = points[0].y;
+        
+        if (px <= points[0].x) {
+          y_screen = points[0].y;
+        } else if (px >= points[points.length - 1].x) {
+          y_screen = points[points.length - 1].y;
+        } else {
+          for (let j = 0; j < points.length - 1; j++) {
+            if (px >= points[j].x && px <= points[j+1].x) {
+              const ratio = (points[j+1].x === points[j].x) ? 0 : (px - points[j].x) / (points[j+1].x - points[j].x);
+              y_screen = points[j].y + ratio * (points[j+1].y - points[j].y);
+              break;
+            }
+          }
+        }
+        
+        // Convert Screen Y to Tone Curve (-1000 to 1000 approx)
+        const val = Math.round((KEYS * NOTE_HEIGHT - y_screen) * 10);
+        xs.push(t);
+        ys.push(val);
+      }
 
-      performDrawLinearCurve(state.selectedPartNo, 'PITD', startX, endX, startY, endY);
+      performUpdateCurve(state.selectedPartNo, 'pitd', xs, ys);
     }
     pitchDrawPoints.value = [];
     pitchIsDrawing.value = false;
@@ -101,7 +120,6 @@ const activeExpAbbr = ref('vel');
 
 const expIsDrawing = ref(false);
 const expDrawPoints = ref<{x: number, y: number}[]>([]);
-const expDrawnPaths = ref<{x: number, y: number}[][]>([]);
 
 function getExpLocalCoords(e: MouseEvent) {
   const el = expCanvasRef.value;
@@ -123,26 +141,68 @@ function drawExp(e: MouseEvent) {
   expDrawPoints.value.push(getExpLocalCoords(e));
 }
 
+const currentExpDescriptor = computed(() => state.expressions?.find(e => e.abbr.toLowerCase() === activeExpAbbr.value.toLowerCase()));
+
+const defaultExpY = computed(() => {
+  const desc = currentExpDescriptor.value;
+  const height = 150;
+  if (!desc) return height / 2;
+  const range = desc.max - desc.min;
+  if (range === 0) return height / 2;
+  return Math.round(height - height * (desc.defaultValue - desc.min) / range);
+});
+
 function stopExpDraw() {
   if (expIsDrawing.value) {
     if (expDrawPoints.value.length > 1) {
       const points = [...expDrawPoints.value];
-      expDrawnPaths.value.push(points);
+      const desc = currentExpDescriptor.value;
 
-      const startPoint = points[0];
-      const endPoint = points[points.length - 1];
+      if (desc) {
+        const range = desc.max - desc.min;
+        const el = expCanvasRef.value;
+        const height = el ? el.clientHeight : 150;
 
-      // Convert Screen X to Ticks
-      const startX = Math.round(startPoint.x / PIXELS_PER_TICK);
-      const endX = Math.round(endPoint.x / PIXELS_PER_TICK);
+        points.sort((a, b) => a.x - b.x);
+        let minX = Math.round(points[0].x / PIXELS_PER_TICK);
+        let maxX = Math.round(points[points.length - 1].x / PIXELS_PER_TICK);
+        // snap to closest 5 interval
+        minX = Math.floor(minX / 5) * 5;
+        maxX = Math.ceil(maxX / 5) * 5;
 
-      // Convert Screen Y to Expression Value (0 to 100 typical)
-      const el = expCanvasRef.value;
-      const height = el ? el.clientHeight : 150;
-      const startY = Math.round(100 - (startPoint.y / height) * 100);
-      const endY = Math.round(100 - (endPoint.y / height) * 100);
+        // Generate points exactly like freehand
+        const xs: number[] = [];
+        const ys: number[] = [];
 
-      performDrawLinearCurve(state.selectedPartNo, activeExpAbbr.value, startX, endX, startY, endY);
+        for (let t = minX; t <= maxX; t += 5) {
+          const px = t * PIXELS_PER_TICK;
+          let y_screen = points[0].y;
+          
+          if (px <= points[0].x) {
+            y_screen = points[0].y;
+          } else if (px >= points[points.length - 1].x) {
+            y_screen = points[points.length - 1].y;
+          } else {
+            for (let j = 0; j < points.length - 1; j++) {
+              if (px >= points[j].x && px <= points[j+1].x) {
+                const ratio = (points[j+1].x === points[j].x) ? 0 : (px - points[j].x) / (points[j+1].x - points[j].x);
+                y_screen = points[j].y + ratio * (points[j+1].y - points[j].y);
+                break;
+              }
+            }
+          }
+          
+          let val = Math.round(desc.min + ((height - y_screen) / height) * range);
+          // clamp it within bounds
+          if (val < desc.min) val = desc.min;
+          if (val > desc.max) val = desc.max;
+          
+          xs.push(t);
+          ys.push(val);
+        }
+
+        performUpdateCurve(state.selectedPartNo, activeExpAbbr.value, xs, ys);
+      }
     }
     expDrawPoints.value = [];
     expIsDrawing.value = false;
@@ -159,7 +219,42 @@ function pointsToSvgPath(points: {x: number, y: number}[]) {
 }
 
 const currentPitchPath = computed(() => pointsToSvgPath(pitchDrawPoints.value));
-const currentExpPath = computed(() => pointsToSvgPath(expDrawPoints.value));
+
+const activeExpCurvePath = computed(() => {
+  const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+  const curve = part?.curves?.find(c => c.abbr.toLowerCase() === activeExpAbbr.value.toLowerCase());
+  const desc = currentExpDescriptor.value;
+  const height = 150;
+  
+  if (!desc) return '';
+  const range = desc.max - desc.min;
+  if (range === 0) return '';
+  
+  const defY = defaultExpY.value;
+  const maxW = visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK;
+  
+  if (!curve || !curve.xs || curve.xs.length === 0) {
+    return `M 0 ${defY} L ${maxW} ${defY}`;
+  }
+  
+  let d = `M 0 ${defY} `;
+  let firstPointX = curve.xs[0] * PIXELS_PER_TICK;
+  d += `L ${firstPointX} ${defY} `; // connect default base line to first point
+  
+  for (let i = 0; i < curve.xs.length; i++) {
+    const x = curve.xs[i] * PIXELS_PER_TICK;
+    const y = Math.round(height - height * (curve.ys![i] - desc.min) / range);
+    d += `L ${x} ${y} `;
+  }
+  
+  let lastPointX = curve.xs[curve.xs.length - 1] * PIXELS_PER_TICK;
+  d += `L ${lastPointX} ${defY} `; // connect back from last point to base line
+  d += `L ${maxW} ${defY}`;
+
+  return d;
+});
+
+const currentExpDrawingPath = computed(() => pointsToSvgPath(expDrawPoints.value));
 
 function handleNotesScroll(e: Event) {
   const target = e.target as HTMLElement;
@@ -370,8 +465,9 @@ function handleNotesScroll(e: Event) {
             </template>
           </div>
           <svg class="exp-draw-layer" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px`, height: '100%' }">
-            <path v-for="(pathD, i) in expDrawnPaths.map(pointsToSvgPath)" :key="'e'+i" :d="pathD" stroke="#60a0cf" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-            <path v-if="currentExpPath" :d="currentExpPath" stroke="#60a0cf" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+            <line x1="0" :y1="defaultExpY" :x2="visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK" :y2="defaultExpY" stroke="#60a0cf" stroke-width="1" stroke-dasharray="4 4" opacity="0.5" />
+            <path v-if="activeExpCurvePath" :d="activeExpCurvePath" stroke="#60a0cf" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+            <path v-if="currentExpDrawingPath" :d="currentExpDrawingPath" stroke="#60a0cf" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.8" />
           </svg>
         </div>
         <div class="pr-row-5 pr-col-2 pr-exp-vscrollbar">

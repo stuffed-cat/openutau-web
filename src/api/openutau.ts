@@ -179,6 +179,14 @@ export function updateNote(file: File, payload: {
   });
 }
 
+export function updateCurve(partNo: number, abbr: string, xs: number[], ys: number[]) {
+  return requestJson<{ message: string; pointCount: number }>(`/api/project/parts/${partNo}/curves/${abbr}`, {
+    method: 'POST',
+    body: JSON.stringify({ xs, ys }),
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 export function drawPitchCurve(partNo: number, abbr: string, startX: number, endX: number, startY: number, endY: number, interval = 5) {
   return requestJson<{ message: string; pointCount: number }>(`/api/project/parts/${partNo}/curves/${abbr}/linear`, {
     method: 'POST',

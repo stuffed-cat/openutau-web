@@ -155,6 +155,7 @@ export interface OpenUtauAppState {
   currentFile: File | null;
   projectLoaded: boolean;
   showSingerManager: boolean;
+  expressions: TrackExpression[];
   showPianoRoll: boolean;
 }
 

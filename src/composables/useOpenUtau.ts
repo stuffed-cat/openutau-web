@@ -32,6 +32,7 @@ import {
   stop,
   updateNote,
   drawPitchCurve,
+  updateCurve,
 } from '../api/openutau';
 import type {
   NoteProperties,
@@ -60,6 +61,7 @@ function createState(): OpenUtauAppState {
     currentFile: null,
     projectLoaded: false,
     showSingerManager: false,
+    expressions: [],
     showPianoRoll: false,
   });
 }
@@ -145,13 +147,45 @@ export function useOpenUtau() {
     }
   }
 
+  async function performUpdateCurve(partIndex: number, abbr: string, xs: number[], ys: number[]) {
+    if (!state.currentFile) return;
+    state.busy = true;
+    state.error = null;
+    try {
+      await updateCurve(partIndex, abbr, xs, ys);
+      const updatedPart = await getPartProperties(partIndex);
+      const idx = state.parts.findIndex(p => p.partNo === partIndex);
+      if (idx !== -1) {
+        state.parts[idx] = updatedPart;
+      } else {
+        state.parts.push(updatedPart);
+      }
+      if (state.selectedPartNo === partIndex) {
+        selectedPart.value = updatedPart;
+      }
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
+
   async function performDrawLinearCurve(partIndex: number, abbr: string, startX: number, endX: number, startY: number, endY: number, interval = 5) {
     if (!state.currentFile) return;
     state.busy = true;
     state.error = null;
     try {
       await drawPitchCurve(partIndex, abbr, startX, endX, startY, endY, interval);
-      await reloadProject();
+      const updatedPart = await getPartProperties(partIndex);
+      const idx = state.parts.findIndex(p => p.partNo === partIndex);
+      if (idx !== -1) {
+        state.parts[idx] = updatedPart;
+      } else {
+        state.parts.push(updatedPart);
+      }
+      if (state.selectedPartNo === partIndex) {
+        selectedPart.value = updatedPart;
+      }
     } catch (error) {
       state.error = toMessage(error);
     } finally {
@@ -223,7 +257,9 @@ export function useOpenUtau() {
   async function performUndo() {
     try {
       await undo();
-      await reloadProject();
+      await refreshSelection();
+      state.tracks = await loadTrackDetails(state.projectInfo?.tracks.length || 0);
+      state.parts = await loadPartDetails(state.projectInfo?.parts.length || 0);
     } catch (error) {
       state.error = toMessage(error);
     }
@@ -232,7 +268,9 @@ export function useOpenUtau() {
   async function performRedo() {
     try {
       await redo();
-      await reloadProject();
+      await refreshSelection();
+      state.tracks = await loadTrackDetails(state.projectInfo?.tracks.length || 0);
+      state.parts = await loadPartDetails(state.projectInfo?.parts.length || 0);
     } catch (error) {
       state.error = toMessage(error);
     }
@@ -584,9 +622,13 @@ export function useOpenUtau() {
     state.showSingerManager = show ?? !state.showSingerManager;
   }
 
-  function openPianoRoll(partNo?: number) {
+  async function openPianoRoll(partNo?: number) {
     if (partNo !== undefined) selectPart(partNo);
     state.showPianoRoll = true;
+    const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+    if (part) {
+      state.expressions = await loadTrackExpressions(part.trackNo);
+    }
   }
 
   function closePianoRoll() {
@@ -659,6 +701,7 @@ export function useOpenUtau() {
     performMovePart,
     performResizePart,
     performDrawLinearCurve,
+    performUpdateCurve,
   };
 }
 
