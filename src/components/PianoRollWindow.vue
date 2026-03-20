@@ -5,8 +5,8 @@ import type { VoiceNoteSummary } from '../types/openutau';
 
 const { state, closePianoRoll, performDrawLinearCurve, performUpdateCurve, selectNote, performMoveNotes, insertNote, deleteCurrentNote, performResizeNotes, saveCurrentNote } = useOpenUtau();
 
-const NOTE_HEIGHT = 20; // Official defaults to slightly varying height, but let's use 20 usually
-const PIXELS_PER_TICK = 0.05;
+const NOTE_HEIGHT = ref(20); // Official defaults to slightly varying height, but let's use 20 usually
+const PIXELS_PER_TICK = ref(0.05);
 const KEYS = 128;
 const TICKS_PER_BEAT = 480;
 const BEATS_PER_MEASURE = 4;
@@ -41,10 +41,10 @@ function getNoteStyle(note: VoiceNoteSummary) {
   }
 
   return {
-    top: `${(KEYS - 1 - t) * NOTE_HEIGHT}px`,
-    height: `${NOTE_HEIGHT - 1}px`,
-    left: `${pos * PIXELS_PER_TICK}px`,
-    width: `${Math.max(4, dur * PIXELS_PER_TICK)}px`
+    top: `${(KEYS - 1 - t) * NOTE_HEIGHT.value}px`,
+    height: `${NOTE_HEIGHT.value - 1}px`,
+    left: `${pos * PIXELS_PER_TICK.value}px`,
+    width: `${Math.max(4, dur * PIXELS_PER_TICK.value)}px`
   };
 }
 
@@ -92,7 +92,7 @@ function startNoteDrag(note: VoiceNoteSummary, e: MouseEvent) {
     deleteCurrentNote();
     return;
   }
-  if (activeTool.value !== 'select') return;
+  if (activeTool.value !== 'select' && activeTool.value !== 'draw') return;
   selectNote(note.noteIndex);
   draggingNote.value = {
     noteIndex: note.noteIndex,
@@ -111,7 +111,7 @@ function startNoteDrag(note: VoiceNoteSummary, e: MouseEvent) {
 }
 
 function startNoteResize(note: VoiceNoteSummary, e: MouseEvent) {
-  if (activeTool.value !== 'select') return;
+  if (activeTool.value !== 'select' && activeTool.value !== 'draw') return;
   selectNote(note.noteIndex);
   draggingNote.value = {
     noteIndex: note.noteIndex,
@@ -136,8 +136,8 @@ function onNoteMouseMove(e: MouseEvent) {
   const dy = e.clientY - draggingNote.value.startY;
 
   if (draggingNote.value.type === 'move') {
-    const tickDelta = dx / PIXELS_PER_TICK;
-    const toneDelta = -Math.round(dy / NOTE_HEIGHT);
+    const tickDelta = dx / PIXELS_PER_TICK.value;
+    const toneDelta = -Math.round(dy / NOTE_HEIGHT.value);
 
     let newPosition = draggingNote.value.startPosition + tickDelta;
     let newTone = draggingNote.value.startTone + toneDelta;
@@ -146,7 +146,7 @@ function onNoteMouseMove(e: MouseEvent) {
     draggingNote.value.currentPosition = Math.max(0, newPosition);
     draggingNote.value.currentTone = newTone;
   } else if (draggingNote.value.type === 'resize') {
-    const tickDelta = dx / PIXELS_PER_TICK;
+    const tickDelta = dx / PIXELS_PER_TICK.value;
     let newDuration = draggingNote.value.startDuration + tickDelta;
     
     draggingNote.value.currentDuration = Math.max(15, newDuration);
@@ -176,11 +176,60 @@ async function onNoteMouseUp(e: MouseEvent) {
   draggingNote.value.type = null;
 }
 
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let panStartScrollLeft = 0;
+let panStartScrollTop = 0;
+
+function onPanMouseMove(e: MouseEvent) {
+  if (!isPanning || !prNotesAreaRef.value) return;
+  const dx = e.clientX - panStartX;
+  const dy = e.clientY - panStartY;
+  prNotesAreaRef.value.scrollLeft = panStartScrollLeft - dx;
+  prNotesAreaRef.value.scrollTop = panStartScrollTop - dy;
+}
+
+function onPanMouseUp(e: MouseEvent) {
+  isPanning = false;
+  window.removeEventListener('mousemove', onPanMouseMove);
+  window.removeEventListener('mouseup', onPanMouseUp);
+}
+
+function onNotesAreaWheel(e: WheelEvent) {
+  if (e.ctrlKey) {
+    e.preventDefault();
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+    PIXELS_PER_TICK.value = Math.max(0.01, Math.min(2.0, PIXELS_PER_TICK.value * zoomFactor));
+  } else if (e.altKey) {
+    e.preventDefault();
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+    NOTE_HEIGHT.value = Math.max(8, Math.min(60, Math.round(NOTE_HEIGHT.value * zoomFactor)));
+  } else if (e.shiftKey) {
+    if (prNotesAreaRef.value) {
+      e.preventDefault();
+      prNotesAreaRef.value.scrollLeft += e.deltaY > 0 ? 50 : -50;
+    }
+  }
+}
+
 function onNotesAreaMouseDown(e: MouseEvent) {
-  if (activeTool.value === 'draw') {
+  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    e.preventDefault();
+    isPanning = true;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    panStartScrollLeft = prNotesAreaRef.value?.scrollLeft || 0;
+    panStartScrollTop = prNotesAreaRef.value?.scrollTop || 0;
+    window.addEventListener('mousemove', onPanMouseMove);
+    window.addEventListener('mouseup', onPanMouseUp);
+    return;
+  }
+
+  if (activeTool.value === 'draw' && e.button === 0) {
     const { x, y } = getNotesLocalCoords(e);
-    const position = Math.round(x / PIXELS_PER_TICK);
-    const tone = KEYS - 1 - Math.floor(y / NOTE_HEIGHT);
+    const position = Math.round(x / PIXELS_PER_TICK.value);
+    const tone = KEYS - 1 - Math.floor(y / NOTE_HEIGHT.value);
     insertNote({ position, duration: 480, tone, lyric: 'a' });
     return;
   }
@@ -200,8 +249,8 @@ function stopPitchDraw() {
       const points = [...pitchDrawPoints.value];
       
       points.sort((a, b) => a.x - b.x);
-      let minX = Math.round(points[0].x / PIXELS_PER_TICK);
-      let maxX = Math.round(points[points.length - 1].x / PIXELS_PER_TICK);
+      let minX = Math.round(points[0].x / PIXELS_PER_TICK.value);
+      let maxX = Math.round(points[points.length - 1].x / PIXELS_PER_TICK.value);
       minX = Math.floor(minX / 5) * 5;
       maxX = Math.ceil(maxX / 5) * 5;
 
@@ -209,7 +258,7 @@ function stopPitchDraw() {
       const ys: number[] = [];
 
       for (let t = minX; t <= maxX; t += 5) {
-        const px = t * PIXELS_PER_TICK;
+        const px = t * PIXELS_PER_TICK.value;
         let y_screen = points[0].y;
         
         if (px <= points[0].x) {
@@ -227,7 +276,7 @@ function stopPitchDraw() {
         }
         
         // Convert Screen Y to Tone Curve (-1000 to 1000 approx)
-        const val = Math.round((KEYS * NOTE_HEIGHT - y_screen) * 10);
+        const val = Math.round((KEYS * NOTE_HEIGHT.value - y_screen) * 10);
         xs.push(t);
         ys.push(val);
       }
@@ -315,8 +364,8 @@ function stopExpDraw() {
         const height = el ? el.clientHeight : 150;
 
         points.sort((a, b) => a.x - b.x);
-        let minX = Math.round(points[0].x / PIXELS_PER_TICK);
-        let maxX = Math.round(points[points.length - 1].x / PIXELS_PER_TICK);
+        let minX = Math.round(points[0].x / PIXELS_PER_TICK.value);
+        let maxX = Math.round(points[points.length - 1].x / PIXELS_PER_TICK.value);
         // snap to closest 5 interval
         minX = Math.floor(minX / 5) * 5;
         maxX = Math.ceil(maxX / 5) * 5;
@@ -326,7 +375,7 @@ function stopExpDraw() {
         const ys: number[] = [];
 
         for (let t = minX; t <= maxX; t += 5) {
-          const px = t * PIXELS_PER_TICK;
+          const px = t * PIXELS_PER_TICK.value;
           let y_screen = points[0].y;
           
           if (px <= points[0].x) {
@@ -409,23 +458,23 @@ const activeExpCurvePath = computed(() => {
   if (range === 0) return '';
   
   const defY = defaultExpY.value;
-  const maxW = visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK;
+  const maxW = visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK.value;
   
   if (!curve || !curve.xs || curve.xs.length === 0) {
     return `M 0 ${defY} L ${maxW} ${defY}`;
   }
   
   let d = `M 0 ${defY} `;
-  let firstPointX = curve.xs[0] * PIXELS_PER_TICK;
+  let firstPointX = curve.xs[0] * PIXELS_PER_TICK.value;
   d += `L ${firstPointX} ${defY} `; // connect default base line to first point
   
   for (let i = 0; i < curve.xs.length; i++) {
-    const x = curve.xs[i] * PIXELS_PER_TICK;
+    const x = curve.xs[i] * PIXELS_PER_TICK.value;
     const y = Math.round(height - height * (curve.ys![i] - desc.min) / range);
     d += `L ${x} ${y} `;
   }
   
-  let lastPointX = curve.xs[curve.xs.length - 1] * PIXELS_PER_TICK;
+  let lastPointX = curve.xs[curve.xs.length - 1] * PIXELS_PER_TICK.value;
   d += `L ${lastPointX} ${defY} `; // connect back from last point to base line
   d += `L ${maxW} ${defY}`;
 
@@ -590,6 +639,7 @@ function handleNotesScroll(e: Event) {
         </div>
 
         <div class="pr-row-3 pr-col-1 pr-notes-area" ref="prNotesAreaRef" @scroll="handleNotesScroll"
+             @wheel="onNotesAreaWheel"
              @mousedown="onNotesAreaMouseDown" @mousemove="drawPitch" @mouseup="stopPitchDraw" @mouseleave="stopPitchDraw">
           <div class="notes-bg" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px`, height: `${KEYS * NOTE_HEIGHT}px` }">
             <div v-for="i in KEYS" :key="i" class="note-row-bg" :class="{ 'black-key-row': isBlackKey(KEYS - i) }"

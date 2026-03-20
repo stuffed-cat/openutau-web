@@ -656,6 +656,47 @@ export function useOpenUtau() {
     },
   );
 
+  async function performMoveNotes(deltaTick: number, deltaTone: number) {
+    if (!state.currentFile || !selectedNote.value || state.selectedPartNo < 0) return;
+    state.busy = true;
+    try {
+      const blob = await updateNote(state.currentFile, {
+        partIndex: state.selectedPartNo,
+        matchPosition: selectedNote.value.position,
+        newPosition: Math.max(0, selectedNote.value.position + deltaTick),
+        newTone: Math.max(0, selectedNote.value.tone + deltaTone),
+      });
+      state.currentFile = blobToFile(blob, state.currentFile.name.replace(/\.ustx$/i, '.ustx'));
+      await reloadProject();
+      await loadSelectedPart();
+      await loadSelectedNote();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  async function performResizeNotes(deltaDuration: number) {
+    if (!state.currentFile || !selectedNote.value || state.selectedPartNo < 0) return;
+    state.busy = true;
+    try {
+      const blob = await updateNote(state.currentFile, {
+        partIndex: state.selectedPartNo,
+        matchPosition: selectedNote.value.position,
+        newDuration: Math.max(15, selectedNote.value.duration + deltaDuration),
+      });
+      state.currentFile = blobToFile(blob, state.currentFile.name.replace(/\.ustx$/i, '.ustx'));
+      await reloadProject();
+      await loadSelectedPart();
+      await loadSelectedNote();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
+
   return {
     state,
     selectedTrack,
@@ -702,6 +743,8 @@ export function useOpenUtau() {
     performResizePart,
     performDrawLinearCurve,
     performUpdateCurve,
+    performMoveNotes,
+    performResizeNotes,
   };
 }
 
