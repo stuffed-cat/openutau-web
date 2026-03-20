@@ -8,6 +8,10 @@ const { state, closePianoRoll } = useOpenUtau();
 const NOTE_HEIGHT = 20; // Official defaults to slightly varying height, but let's use 20 usually
 const PIXELS_PER_TICK = 0.05;
 const KEYS = 128;
+const TICKS_PER_BEAT = 480;
+const BEATS_PER_MEASURE = 4;
+const TICKS_PER_MEASURE = TICKS_PER_BEAT * BEATS_PER_MEASURE;
+const visibleMeasures = 100; // Mock 100 measures for the timeline
 
 const selectedNotes = computed<VoiceNoteSummary[]>(() => {
   const part = state.parts.find(p => p.partNo === state.selectedPartNo);
@@ -152,7 +156,19 @@ const isWindowMaximized = ref(false);
 
         <!-- Row 2: Timeline -->
         <div class="pr-row-2 pr-col-1 pr-timeline-canvas">
-          <!-- Timeline Ticks will be CSS repeated -->
+          <div class="timeline-ticks-container">
+            <template v-for="m in visibleMeasures" :key="m">
+              <!-- Measure marker -->
+              <div class="timeline-measure" :style="{ left: `${(m - 1) * TICKS_PER_MEASURE * PIXELS_PER_TICK}px` }">
+                <span class="measure-num">{{ m }}</span>
+                <div class="measure-line"></div>
+              </div>
+              <!-- Beat markers -->
+              <template v-for="b in (BEATS_PER_MEASURE - 1)" :key="b">
+                <div class="timeline-beat" :style="{ left: `${((m - 1) * TICKS_PER_MEASURE + b * TICKS_PER_BEAT) * PIXELS_PER_TICK}px` }"></div>
+              </template>
+            </template>
+          </div>
         </div>
         <div class="pr-row-2 pr-col-2 pr-view-scaler">
           <div class="vscaler-thumb"></div>
@@ -500,14 +516,44 @@ const isWindowMaximized = ref(false);
   position: relative;
   overflow: hidden;
 
-  .timeline-ticks {
+  .timeline-ticks-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .timeline-measure {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 0;
-    right: 0;
-    /* Simulate tick lines */
-    background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0px, rgba(255, 255, 255, 0.3) 1px, transparent 1px, transparent 96px);
+    width: 1px;
+    background: rgba(255, 255, 255, 0.3); /* Match the previous repeating gradient */
+
+    .measure-num {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      color: #999;
+      font-size: 10px;
+    }
+    
+    .measure-line {
+      position: absolute;
+      bottom: 0;
+      width: 1px;
+      height: 6px;
+      background: #aaa;
+    }
+  }
+
+  .timeline-beat {
+    position: absolute;
+    bottom: 0;
+    width: 1px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
   }
 }
 
