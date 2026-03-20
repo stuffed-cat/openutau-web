@@ -190,7 +190,14 @@ const isWindowMaximized = ref(false);
             <div v-for="i in KEYS" :key="i" class="note-row-bg" :class="{ 'black-key-row': isBlackKey(KEYS - i) }"
               :style="{ height: `${NOTE_HEIGHT}px` }"></div>
             <!-- Grid columns (ticks) -->
-            <div class="notes-bg-ticks"></div>
+            <div class="notes-bg-ticks">
+              <template v-for="m in visibleMeasures" :key="'m'+m">
+                <div class="tick-measure" :style="{ left: `${(m - 1) * TICKS_PER_MEASURE * PIXELS_PER_TICK}px` }"></div>
+                <template v-for="b in (BEATS_PER_MEASURE - 1)" :key="'b'+b">
+                  <div class="tick-beat" :style="{ left: `${((m - 1) * TICKS_PER_MEASURE + b * TICKS_PER_BEAT) * PIXELS_PER_TICK}px` }"></div>
+                </template>
+              </template>
+            </div>
           </div>
           <div class="notes-layer">
             <div v-for="note in selectedNotes" :key="note.noteIndex" class="note-block"
@@ -217,7 +224,14 @@ const isWindowMaximized = ref(false);
         </div>
         <div class="pr-row-5 pr-col-1 pr-exp-canvas">
           <!-- Expression canvas background -->
-          <div class="exp-ticks"></div>
+          <div class="exp-ticks">
+            <template v-for="m in visibleMeasures" :key="'exp-m'+m">
+              <div class="tick-measure" :style="{ left: `${(m - 1) * TICKS_PER_MEASURE * PIXELS_PER_TICK}px` }"></div>
+              <template v-for="b in (BEATS_PER_MEASURE - 1)" :key="'exp-b'+b">
+                <div class="tick-beat" :style="{ left: `${((m - 1) * TICKS_PER_MEASURE + b * TICKS_PER_BEAT) * PIXELS_PER_TICK}px` }"></div>
+              </template>
+            </template>
+          </div>
         </div>
         <div class="pr-row-5 pr-col-2 pr-exp-vscrollbar">
         </div>
@@ -631,7 +645,15 @@ const isWindowMaximized = ref(false);
     bottom: 0;
     left: 0;
     right: 0;
-    background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0px, rgba(255, 255, 255, 0.06) 1px, transparent 1px, transparent 96px);
+
+    .tick-measure {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .tick-beat {
+      position: absolute; top: 0; bottom: 0; width: 0;
+      border-left: 1px dashed rgba(255, 255, 255, 0.1);
+    }
   }
 }
 
@@ -718,7 +740,15 @@ const isWindowMaximized = ref(false);
     bottom: 0;
     left: 0;
     right: 0;
-    background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0px, rgba(255, 255, 255, 0.06) 1px, transparent 1px, transparent 96px);
+
+    .tick-measure {
+      position: absolute; top: 0; bottom: 0; width: 1px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .tick-beat {
+      position: absolute; top: 0; bottom: 0; width: 0;
+      border-left: 1px dashed rgba(255, 255, 255, 0.1);
+    }
   }
 }
 </style>
