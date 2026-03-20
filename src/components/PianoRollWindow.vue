@@ -108,7 +108,34 @@ function stopPitchDraw() {
         ys.push(val);
       }
 
-      performUpdateCurve(state.selectedPartNo, 'pitd', xs, ys);
+      const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+      const curve = part?.curves?.find(c => c.abbr.toLowerCase() === 'pitd');
+      
+      let mergedXs = curve?.xs ? [...curve.xs] : [];
+      let mergedYs = curve?.ys ? [...curve.ys] : [];
+
+      if (xs.length > 0) {
+        const firstX = xs[0];
+        const lastX = xs[xs.length - 1];
+
+        const filteredPoints: {x: number, y: number}[] = [];
+        for (let i = 0; i < mergedXs.length; i++) {
+          if (mergedXs[i] < firstX || mergedXs[i] > lastX) {
+            filteredPoints.push({x: mergedXs[i], y: mergedYs[i]});
+          }
+        }
+        
+        for (let i = 0; i < xs.length; i++) {
+          filteredPoints.push({x: xs[i], y: ys[i]});
+        }
+        
+        filteredPoints.sort((a, b) => a.x - b.x);
+        
+        mergedXs = filteredPoints.map(p => p.x);
+        mergedYs = filteredPoints.map(p => p.y);
+      }
+
+      performUpdateCurve(state.selectedPartNo, 'pitd', mergedXs, mergedYs);
     }
     pitchDrawPoints.value = [];
     pitchIsDrawing.value = false;
@@ -201,7 +228,34 @@ function stopExpDraw() {
           ys.push(val);
         }
 
-        performUpdateCurve(state.selectedPartNo, activeExpAbbr.value, xs, ys);
+        const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+        const curve = part?.curves?.find(c => c.abbr.toLowerCase() === activeExpAbbr.value.toLowerCase());
+        
+        let mergedXs = curve?.xs ? [...curve.xs] : [];
+        let mergedYs = curve?.ys ? [...curve.ys] : [];
+
+        if (xs.length > 0) {
+          const firstX = xs[0];
+          const lastX = xs[xs.length - 1];
+
+          const filteredPoints: {x: number, y: number}[] = [];
+          for (let i = 0; i < mergedXs.length; i++) {
+            if (mergedXs[i] < firstX || mergedXs[i] > lastX) {
+              filteredPoints.push({x: mergedXs[i], y: mergedYs[i]});
+            }
+          }
+          
+          for (let i = 0; i < xs.length; i++) {
+            filteredPoints.push({x: xs[i], y: ys[i]});
+          }
+          
+          filteredPoints.sort((a, b) => a.x - b.x);
+          
+          mergedXs = filteredPoints.map(p => p.x);
+          mergedYs = filteredPoints.map(p => p.y);
+        }
+
+        performUpdateCurve(state.selectedPartNo, activeExpAbbr.value, mergedXs, mergedYs);
       }
     }
     expDrawPoints.value = [];
