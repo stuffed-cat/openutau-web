@@ -93,7 +93,7 @@ export function useOpenUtau() {
     }
   }
 
-  async function performAddPart(trackIndex: number, position: number = 0, duration: number = 1920) {
+  async function performAddPart(trackIndex: number, position: number = 0, duration: number = 7680) {
     if (!state.currentFile) {
       state.error = '请先打开工程后再添加段落';
       return;

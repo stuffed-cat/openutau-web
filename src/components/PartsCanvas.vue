@@ -36,8 +36,8 @@ function onTrackClick(event: MouseEvent, trackIndex: number) {
   // Snap to nearest beat (480 ticks = 1 quarter down)
   const snapTick = Math.floor(positionTick / 480) * 480;
   
-  // Default duration = 1920 (1 measure of 4/4)
-  performAddPart(trackIndex, snapTick, 1920);
+  // Default duration = 7680 (4 measures of 4/4)
+  performAddPart(trackIndex, snapTick, 7680);
 }
 </script>
 
