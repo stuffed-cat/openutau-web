@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { VoiceNoteSummary } from '../types/openutau';
 
-const { state } = useOpenUtau();
+const { state, closePianoRoll } = useOpenUtau();
 
 const NOTE_HEIGHT = 16;
 const PIXELS_PER_TICK = 0.05;
@@ -33,41 +33,49 @@ function getNoteStyle(note: VoiceNoteSummary) {
 </script>
 
 <template>
-  <div class="piano-roll-layout">
-    <div class="keyboard-canvas">
-      <div class="keys-container">
-        <div 
-          v-for="i in KEYS" 
-          :key="i"
-          class="piano-key"
-          :class="{ 'black-key': isBlackKey(KEYS - i), 'white-key': !isBlackKey(KEYS - i) }"
-          :style="{ height: `${NOTE_HEIGHT}px` }"
-        >
-          <span class="key-name" v-if="getKeyName(KEYS - i)">{{ getKeyName(KEYS - i) }}</span>
+  <div class="modal-overlay" @click.self="closePianoRoll()">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span class="title">Piano Roll - Part {{ state.selectedPartNo }}</span>
+        <button class="close-btn" @click="closePianoRoll()">×</button>
+      </div>
+      <div class="piano-roll-layout">
+        <div class="keyboard-canvas">
+          <div class="keys-container">
+            <div 
+              v-for="i in KEYS" 
+              :key="i"
+              class="piano-key"
+              :class="{ 'black-key': isBlackKey(KEYS - i), 'white-key': !isBlackKey(KEYS - i) }"
+              :style="{ height: `${NOTE_HEIGHT}px` }"
+            >
+              <span class="key-name" v-if="getKeyName(KEYS - i)">{{ getKeyName(KEYS - i) }}</span>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-    
-    <div class="notes-canvas-wrapper">
-      <div class="notes-bg">
-        <div 
-          v-for="i in KEYS" 
-          :key="i"
-          class="note-row-bg"
-          :class="{ 'black-key-row': isBlackKey(KEYS - i) }"
-          :style="{ height: `${NOTE_HEIGHT}px` }"
-        ></div>
-      </div>
-      
-      <div class="notes-layer">
-        <div 
-          v-for="note in selectedNotes" 
-          :key="note.noteIndex" 
-          class="note-block"
-          :class="{ selected: state.selectedNoteIndex === note.noteIndex }"
-          :style="getNoteStyle(note)"
-        >
-          <span class="note-lyric">{{ note.lyric }}</span>
+        
+        <div class="notes-canvas-wrapper">
+          <div class="notes-bg">
+            <div 
+              v-for="i in KEYS" 
+              :key="i"
+              class="note-row-bg"
+              :class="{ 'black-key-row': isBlackKey(KEYS - i) }"
+              :style="{ height: `${NOTE_HEIGHT}px` }"
+            ></div>
+          </div>
+          
+          <div class="notes-layer">
+            <div 
+              v-for="note in selectedNotes" 
+              :key="note.noteIndex" 
+              class="note-block"
+              :class="{ selected: state.selectedNoteIndex === note.noteIndex }"
+              :style="getNoteStyle(note)"
+            >
+              <span class="note-lyric">{{ note.lyric }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -75,10 +83,49 @@ function getNoteStyle(note: VoiceNoteSummary) {
 </template>
 
 <style scoped lang="scss">
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 10001;
+}
+
+.modal-window {
+  width: 90vw;
+  height: 80vh;
+  background: var(--ou-bg, #ffffff);
+  color: var(--ou-text, #000000);
+  border: 1px solid var(--ou-border, #ccc);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  display: flex; flex-direction: column;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+}
+
+.modal-header {
+  height: 30px;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 10px;
+  background: var(--ou-bg-hover, #eee);
+  border-bottom: 1px solid var(--ou-border, #ccc);
+  
+  .title { font-weight: 500; font-size: 13px; }
+  .close-btn { 
+    background: transparent; border: none; font-size: 16px; cursor: pointer; color: #555;
+    &:hover { color: red; }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .modal-window { background: #2b2d30; color: #ddd; border-color: #1e1e1e; }
+  .modal-header { background: #3c3f41; border-color: #1e1e1e; }
+}
+
 .piano-roll-layout {
   display: flex;
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   background: var(--ou-bg);
 }
 

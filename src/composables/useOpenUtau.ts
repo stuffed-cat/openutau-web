@@ -59,6 +59,7 @@ function createState(): OpenUtauAppState {
     currentFile: null,
     projectLoaded: false,
     showSingerManager: false,
+    showPianoRoll: false,
   });
 }
 
@@ -568,6 +569,15 @@ export function useOpenUtau() {
     state.showSingerManager = show ?? !state.showSingerManager;
   }
 
+  function openPianoRoll(partNo?: number) {
+    if (partNo !== undefined) selectPart(partNo);
+    state.showPianoRoll = true;
+  }
+
+  function closePianoRoll() {
+    state.showPianoRoll = false;
+  }
+
   watch(
     () => state.selectedTrackNo,
     () => {
@@ -627,6 +637,8 @@ export function useOpenUtau() {
     stopProjectPlayback,
     seekProject,
     toggleSingerManager,
+    openPianoRoll,
+    closePianoRoll,
     performAddTrack,
     performAddPart,
     performMovePart,

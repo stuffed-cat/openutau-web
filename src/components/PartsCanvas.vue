@@ -3,7 +3,7 @@ import { computed, ref, toRaw } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { PartProperties } from '../types/openutau';
 
-const { state, selectPart, performAddPart, performMovePart, performResizePart } = useOpenUtau();
+const { state, selectPart, performAddPart, performMovePart, performResizePart, openPianoRoll } = useOpenUtau();
 
 const TRACK_HEIGHT = 104; // Same as TrackHeaderCanvas
 const PIXELS_PER_TICK = 0.05; // Zoom scale simulation
@@ -165,6 +165,7 @@ async function onMouseUp(e: MouseEvent) {
         :class="{ selected: state.selectedPartNo === part.partNo }"
         :style="getPartStyle(part)"
         @mousedown.stop="startDrag(part, $event)"
+        @dblclick.stop="openPianoRoll(part.partNo)"
       >
         <span class="part-name">{{ part.name || `Part ${part.partNo}` }}</span>
         <div class="part-waveform"></div>

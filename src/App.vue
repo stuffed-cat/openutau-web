@@ -4,6 +4,7 @@ import { useOpenUtau } from './composables/useOpenUtau';
 import TitleBar from './components/TitleBar.vue';
 import WelcomePage from './components/WelcomePage.vue';
 import EditorLayout from './components/EditorLayout.vue';
+import PianoRollWindow from './components/PianoRollWindow.vue';
 import SingerManagerWindow from './components/SingerManagerWindow.vue';
 
 const {
@@ -37,6 +38,7 @@ async function handleFileDrop(event: DragEvent) {
     </div>
     
     <SingerManagerWindow v-if="state.showSingerManager" />
+    <PianoRollWindow v-if="state.showPianoRoll" />
   </div>
 </template>
 
