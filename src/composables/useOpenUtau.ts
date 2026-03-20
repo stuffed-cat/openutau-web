@@ -2,6 +2,8 @@ import { computed, reactive, ref, watch } from 'vue';
 import {
   addTrack,
   addPart,
+  movePart,
+  configPart,
   addNote,
   createNewProject,
   downloadSession,
@@ -102,6 +104,36 @@ export function useOpenUtau() {
     state.error = null;
     try {
       const blob = await addPart(state.currentFile, trackIndex, position, duration);
+      state.currentFile = blobToFile(blob, state.currentFile.name);
+      await reloadProject();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  async function performMovePart(partIndex: number, newTrackIndex?: number, newPosition?: number) {
+    if (!state.currentFile) return;
+    state.busy = true;
+    state.error = null;
+    try {
+      const blob = await movePart(state.currentFile, partIndex, newTrackIndex, newPosition);
+      state.currentFile = blobToFile(blob, state.currentFile.name);
+      await reloadProject();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  async function performResizePart(partIndex: number, newDuration: number) {
+    if (!state.currentFile) return;
+    state.busy = true;
+    state.error = null;
+    try {
+      const blob = await configPart(state.currentFile, partIndex, { duration: newDuration });
       state.currentFile = blobToFile(blob, state.currentFile.name);
       await reloadProject();
     } catch (error) {
@@ -597,6 +629,8 @@ export function useOpenUtau() {
     toggleSingerManager,
     performAddTrack,
     performAddPart,
+    performMovePart,
+    performResizePart,
   };
 }
 

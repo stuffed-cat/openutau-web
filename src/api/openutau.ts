@@ -98,6 +98,22 @@ export function addPart(file: File, trackIndex: number, position: number = 0, du
   });
 }
 
+export function movePart(file: File, partIndex: number, newTrackIndex?: number, newPosition?: number) {
+  return requestBlob('/api/project/parts/move', {
+    method: 'POST',
+    body: toFormData(file),
+    query: { partIndex, newTrackIndex, newPosition },
+  });
+}
+
+export function configPart(file: File, partIndex: number, payload: { name?: string, comment?: string, duration?: number }) {
+  return requestBlob('/api/project/parts/config', {
+    method: 'POST',
+    body: toFormData(file),
+    query: { partIndex, ...payload },
+  });
+}
+
 export function addTrack(file: File, trackIndex?: number) {
   return requestBlob('/api/project/tracks/add', {
     method: 'POST',

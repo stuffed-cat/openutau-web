@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, toRaw } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { PartProperties } from '../types/openutau';
 
-const { state, selectPart, performAddPart } = useOpenUtau();
+const { state, selectPart, performAddPart, performMovePart, performResizePart } = useOpenUtau();
 
 const TRACK_HEIGHT = 104; // Same as TrackHeaderCanvas
 const PIXELS_PER_TICK = 0.05; // Zoom scale simulation
@@ -39,6 +39,105 @@ function onTrackClick(event: MouseEvent, trackIndex: number) {
   // Default duration = 7680 (4 measures of 4/4)
   performAddPart(trackIndex, snapTick, 7680);
 }
+
+const draggingPart = ref<{
+  partNo: number,
+  startX: number,
+  startY: number,
+  startPosition: number,
+  startTrackNo: number,
+  startDuration?: number,
+  type: 'move' | 'resize' | null
+}>({
+  partNo: -1,
+  startX: 0,
+  startY: 0,
+  startPosition: 0,
+  startTrackNo: 0,
+  type: null
+});
+
+function startDrag(part: PartProperties, e: MouseEvent) {
+  // To avoid triggering default select and causing issues, but we still want to select it
+  selectPart(part.partNo);
+  draggingPart.value = {
+    partNo: part.partNo,
+    startX: e.clientX,
+    startY: e.clientY,
+    startPosition: part.position,
+    startTrackNo: part.trackNo,
+    type: 'move'
+  };
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+}
+
+function startResize(part: PartProperties, e: MouseEvent) {
+  selectPart(part.partNo);
+  draggingPart.value = {
+    partNo: part.partNo,
+    startX: e.clientX,
+    startY: e.clientY,
+    startPosition: part.position,
+    startTrackNo: part.trackNo,
+    startDuration: part.duration,
+    type: 'resize'
+  };
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+}
+
+function onMouseMove(e: MouseEvent) {
+  if (draggingPart.value.partNo < 0) return;
+  const part = state.parts.find(p => p.partNo === draggingPart.value.partNo);
+  if (!part) return;
+
+  const dx = e.clientX - draggingPart.value.startX;
+  const dy = e.clientY - draggingPart.value.startY;
+
+  if (draggingPart.value.type === 'move') {
+    const tickDelta = dx / PIXELS_PER_TICK;
+    const trackDelta = Math.floor((dy + (TRACK_HEIGHT / 2)) / TRACK_HEIGHT);
+
+    let newPosition = draggingPart.value.startPosition + tickDelta;
+    const snapTick = Math.max(0, Math.floor(newPosition / 480) * 480);
+    
+    let newTrackNo = draggingPart.value.startTrackNo + trackDelta;
+    newTrackNo = Math.max(0, Math.min(newTrackNo, state.tracks.length - 1));
+
+    part.position = snapTick;
+    part.trackNo = newTrackNo;
+  } else if (draggingPart.value.type === 'resize') {
+    const tickDelta = dx / PIXELS_PER_TICK;
+    let newDuration = draggingPart.value.startDuration! + tickDelta;
+    const snapDuration = Math.max(480, Math.floor(newDuration / 480) * 480);
+
+    part.duration = snapDuration;
+  }
+}
+
+async function onMouseUp(e: MouseEvent) {
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', onMouseUp);
+
+  const dragInfo = toRaw(draggingPart.value);
+  if (dragInfo.partNo < 0) return;
+
+  const part = state.parts.find(p => p.partNo === dragInfo.partNo);
+  draggingPart.value.partNo = -1;
+
+  if (!part) return;
+
+  if (dragInfo.type === 'move') {
+    if (part.position !== dragInfo.startPosition || part.trackNo !== dragInfo.startTrackNo) {
+      await performMovePart(part.partNo, part.trackNo, part.position);
+    }
+  } else if (dragInfo.type === 'resize') {
+    if (part.duration !== dragInfo.startDuration) {
+      await performResizePart(part.partNo, part.duration);
+    }
+  }
+}
 </script>
 
 <template>
@@ -65,10 +164,11 @@ function onTrackClick(event: MouseEvent, trackIndex: number) {
         class="part-block"
         :class="{ selected: state.selectedPartNo === part.partNo }"
         :style="getPartStyle(part)"
-        @click.stop="selectPart(part.partNo)"
+        @mousedown.stop="startDrag(part, $event)"
       >
         <span class="part-name">{{ part.name || `Part ${part.partNo}` }}</span>
         <div class="part-waveform"></div>
+        <div class="part-resize-handle" @mousedown.stop="startResize(part, $event)"></div>
       </div>
     </div>
   </div>
@@ -189,5 +289,15 @@ function onTrackClick(event: MouseEvent, trackIndex: number) {
   background-repeat: no-repeat;
   pointer-events: none;
   z-index: 1;
+}
+
+.part-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 20;
 }
 </style>
