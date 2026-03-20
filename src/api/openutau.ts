@@ -179,6 +179,16 @@ export function updateNote(file: File, payload: {
   });
 }
 
+export function drawPitchCurve(partNo: number, abbr: string, startX: number, endX: number, startY: number, endY: number, interval = 5) {
+  return requestJson<{ message: string; pointCount: number }>(`/api/project/parts/${partNo}/curves/${abbr}/linear`, {
+    method: 'POST',
+    body: JSON.stringify({
+      startX, endX, startY, endY, interval
+    }),
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 export function addNote(file: File, payload: {
   partIndex: number;
   position: number;
@@ -287,5 +297,17 @@ export function analyzeSpectrogram(file: Blob, fftSize = 1024, hopSize = 512) {
     method: 'POST',
     body: fd,
     query: { fftSize, hopSize }
+  });
+}
+
+// ============== CURVES & EXPRESSIONS =================
+
+export function drawLinearCurve(partNo: number, abbr: string, startX: number, endX: number, startY: number, endY: number, interval = 5) {
+  return requestJson<{ message: string; pointCount: number }>(`/api/project/parts/${partNo}/curves/${abbr}/linear`, {
+    method: 'POST',
+    body: JSON.stringify({
+      startX, endX, startY, endY, interval
+    }),
+    headers: { 'Content-Type': 'application/json' }
   });
 }

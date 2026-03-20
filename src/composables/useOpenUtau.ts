@@ -31,6 +31,7 @@ import {
   setTrackVolume,
   stop,
   updateNote,
+  drawPitchCurve,
 } from '../api/openutau';
 import type {
   NoteProperties,
@@ -136,6 +137,20 @@ export function useOpenUtau() {
     try {
       const blob = await configPart(state.currentFile, partIndex, { duration: newDuration });
       state.currentFile = blobToFile(blob, state.currentFile.name);
+      await reloadProject();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  async function performDrawLinearCurve(partIndex: number, abbr: string, startX: number, endX: number, startY: number, endY: number, interval = 5) {
+    if (!state.currentFile) return;
+    state.busy = true;
+    state.error = null;
+    try {
+      await drawPitchCurve(partIndex, abbr, startX, endX, startY, endY, interval);
       await reloadProject();
     } catch (error) {
       state.error = toMessage(error);
@@ -643,6 +658,7 @@ export function useOpenUtau() {
     performAddPart,
     performMovePart,
     performResizePart,
+    performDrawLinearCurve,
   };
 }
 

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { VoiceNoteSummary } from '../types/openutau';
 
-const { state, closePianoRoll } = useOpenUtau();
+const { state, closePianoRoll, performDrawLinearCurve } = useOpenUtau();
 
 const NOTE_HEIGHT = 20; // Official defaults to slightly varying height, but let's use 20 usually
 const PIXELS_PER_TICK = 0.05;
@@ -73,7 +73,23 @@ function drawPitch(e: MouseEvent) {
 function stopPitchDraw() {
   if (pitchIsDrawing.value) {
     if (pitchDrawPoints.value.length > 1) {
-      pitchDrawnPaths.value.push([...pitchDrawPoints.value]);
+      const points = [...pitchDrawPoints.value];
+      pitchDrawnPaths.value.push(points);
+      
+      const startPoint = points[0];
+      const endPoint = points[points.length - 1];
+
+      // Convert Screen X to Ticks
+      const startX = Math.round(startPoint.x / PIXELS_PER_TICK);
+      const endX = Math.round(endPoint.x / PIXELS_PER_TICK);
+
+      // Convert Screen Y to Tone Curve (-1000 to 1000 standard deviation range)
+      // Note: This mapping is arbitrary for visual feedback, usually backend expects ticks and actual tone deltas
+      // For now we pass a linear mapping for the pitch curve (PITD).
+      const startY = Math.round((KEYS * NOTE_HEIGHT - startPoint.y) * 10);
+      const endY = Math.round((KEYS * NOTE_HEIGHT - endPoint.y) * 10);
+
+      performDrawLinearCurve(state.selectedPartNo, 'PITD', startX, endX, startY, endY);
     }
     pitchDrawPoints.value = [];
     pitchIsDrawing.value = false;
@@ -81,6 +97,8 @@ function stopPitchDraw() {
 }
 
 // --- Expression Drawing Logic ---
+const activeExpAbbr = ref('vel');
+
 const expIsDrawing = ref(false);
 const expDrawPoints = ref<{x: number, y: number}[]>([]);
 const expDrawnPaths = ref<{x: number, y: number}[][]>([]);
@@ -108,7 +126,23 @@ function drawExp(e: MouseEvent) {
 function stopExpDraw() {
   if (expIsDrawing.value) {
     if (expDrawPoints.value.length > 1) {
-      expDrawnPaths.value.push([...expDrawPoints.value]);
+      const points = [...expDrawPoints.value];
+      expDrawnPaths.value.push(points);
+
+      const startPoint = points[0];
+      const endPoint = points[points.length - 1];
+
+      // Convert Screen X to Ticks
+      const startX = Math.round(startPoint.x / PIXELS_PER_TICK);
+      const endX = Math.round(endPoint.x / PIXELS_PER_TICK);
+
+      // Convert Screen Y to Expression Value (0 to 100 typical)
+      const el = expCanvasRef.value;
+      const height = el ? el.clientHeight : 150;
+      const startY = Math.round(100 - (startPoint.y / height) * 100);
+      const endY = Math.round(100 - (endPoint.y / height) * 100);
+
+      performDrawLinearCurve(state.selectedPartNo, activeExpAbbr.value, startX, endX, startY, endY);
     }
     expDrawPoints.value = [];
     expIsDrawing.value = false;
@@ -318,11 +352,11 @@ function handleNotesScroll(e: Event) {
 
         <!-- Row 5: Expressions Section -->
         <div class="pr-row-5 pr-col-0 pr-exp-list">
-          <div class="exp-item active">VEL (Velocity)</div>
-          <div class="exp-item">VOL (Volume)</div>
-          <div class="exp-item">MOD (Modulation)</div>
-          <div class="exp-item">PITD (Pitch Deviation)</div>
-          <div class="exp-item">CLR (Voice Color)</div>
+          <div class="exp-item" :class="{active: activeExpAbbr === 'vel'}" @click="activeExpAbbr = 'vel'">VEL (Velocity)</div>
+          <div class="exp-item" :class="{active: activeExpAbbr === 'vol'}" @click="activeExpAbbr = 'vol'">VOL (Volume)</div>
+          <div class="exp-item" :class="{active: activeExpAbbr === 'mod'}" @click="activeExpAbbr = 'mod'">MOD (Modulation)</div>
+          <div class="exp-item" :class="{active: activeExpAbbr === 'pitd'}" @click="activeExpAbbr = 'pitd'">PITD (Pitch Deviation)</div>
+          <div class="exp-item" :class="{active: activeExpAbbr === 'clr'}" @click="activeExpAbbr = 'clr'">CLR (Voice Color)</div>
         </div>
         <div class="pr-row-5 pr-col-1 pr-exp-canvas" ref="expCanvasRef"
              @mousedown="startExpDraw" @mousemove="drawExp" @mouseup="stopExpDraw" @mouseleave="stopExpDraw">
