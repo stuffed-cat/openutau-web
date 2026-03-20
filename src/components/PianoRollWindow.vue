@@ -36,6 +36,17 @@ function getNoteStyle(note: VoiceNoteSummary) {
 }
 
 const isWindowMaximized = ref(false);
+
+const timelineRef = ref<HTMLElement | null>(null);
+const keyboardRef = ref<HTMLElement | null>(null);
+const expCanvasRef = ref<HTMLElement | null>(null);
+
+function handleNotesScroll(e: Event) {
+  const target = e.target as HTMLElement;
+  if (timelineRef.value) timelineRef.value.scrollLeft = target.scrollLeft;
+  if (expCanvasRef.value) expCanvasRef.value.scrollLeft = target.scrollLeft;
+  if (keyboardRef.value) keyboardRef.value.scrollTop = target.scrollTop;
+}
 </script>
 
 <template>
@@ -155,8 +166,8 @@ const isWindowMaximized = ref(false);
         </div>
 
         <!-- Row 2: Timeline -->
-        <div class="pr-row-2 pr-col-1 pr-timeline-canvas">
-          <div class="timeline-ticks-container">
+        <div class="pr-row-2 pr-col-1 pr-timeline-canvas" ref="timelineRef">
+          <div class="timeline-ticks-container" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px` }">
             <template v-for="m in visibleMeasures" :key="m">
               <!-- Measure marker -->
               <div class="timeline-measure" :style="{ left: `${(m - 1) * TICKS_PER_MEASURE * PIXELS_PER_TICK}px` }">
@@ -175,7 +186,7 @@ const isWindowMaximized = ref(false);
         </div>
 
         <!-- Row 3: Main Piano/Notes -->
-        <div class="pr-row-3 pr-col-0 pr-keyboard-area">
+        <div class="pr-row-3 pr-col-0 pr-keyboard-area" ref="keyboardRef">
           <div class="keys-container">
             <div v-for="i in KEYS" :key="i" class="piano-key"
               :class="{ 'black-key': isBlackKey(KEYS - i), 'white-key': !isBlackKey(KEYS - i) }"
@@ -185,8 +196,8 @@ const isWindowMaximized = ref(false);
           </div>
         </div>
 
-        <div class="pr-row-3 pr-col-1 pr-notes-area">
-          <div class="notes-bg">
+        <div class="pr-row-3 pr-col-1 pr-notes-area" @scroll="handleNotesScroll">
+          <div class="notes-bg" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px`, height: `${KEYS * NOTE_HEIGHT}px` }">
             <div v-for="i in KEYS" :key="i" class="note-row-bg" :class="{ 'black-key-row': isBlackKey(KEYS - i) }"
               :style="{ height: `${NOTE_HEIGHT}px` }"></div>
             <!-- Grid columns (ticks) -->
@@ -222,9 +233,9 @@ const isWindowMaximized = ref(false);
           <div class="exp-item">PITD (Pitch Deviation)</div>
           <div class="exp-item">CLR (Voice Color)</div>
         </div>
-        <div class="pr-row-5 pr-col-1 pr-exp-canvas">
+        <div class="pr-row-5 pr-col-1 pr-exp-canvas" ref="expCanvasRef">
           <!-- Expression canvas background -->
-          <div class="exp-ticks">
+          <div class="exp-ticks" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px` }">
             <template v-for="m in visibleMeasures" :key="'exp-m'+m">
               <div class="tick-measure" :style="{ left: `${(m - 1) * TICKS_PER_MEASURE * PIXELS_PER_TICK}px` }"></div>
               <template v-for="b in (BEATS_PER_MEASURE - 1)" :key="'exp-b'+b">
@@ -584,6 +595,8 @@ const isWindowMaximized = ref(false);
     width: 100%;
     display: flex;
     flex-direction: column;
+    /* ensure proper scroll height mapping matching keys * note_height */
+    height: calc(128 * 20px);
   }
 
   .piano-key {
@@ -627,7 +640,6 @@ const isWindowMaximized = ref(false);
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
   pointer-events: none;
 
   .note-row-bg {
