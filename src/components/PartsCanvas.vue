@@ -139,10 +139,10 @@ function onTrackClick(event: MouseEvent, trackIndex: number) {
 
 .part-block {
   position: absolute;
-  background: rgba(78, 166, 234, 0.2);
-  border: 1px solid rgba(78, 166, 234, 0.4);
-  color: var(--ou-fg);
-  border-radius: 2px;
+  background: var(--ou-accent);
+  border: none;
+  color: #ffffff;
+  border-radius: 4px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -151,26 +151,43 @@ function onTrackClick(event: MouseEvent, trackIndex: number) {
 }
 
 .part-block:hover {
-  background: rgba(78, 166, 234, 0.3);
+  filter: brightness(1.1);
 }
 
 .part-block.selected {
-  border: 1px solid #FFFFFF;
-  background: rgba(78, 166, 234, 0.4);
+  background: #FF679D; /* OpenUtau AccentColor2 for Selected Part */
+  border: none;
+}
+
+.part-block.selected:hover {
+  filter: brightness(1.1);
 }
 
 .part-name {
-  font-size: 11px;
-  padding: 2px 4px;
-  background: rgba(0, 0, 0, 0.3);
+  font-size: 12px;
+  padding: 2px 3px;
+  background: inherit;
+  color: #ffffff;
   white-space: nowrap;
+  z-index: 10;
+  position: relative;
+  align-self: flex-start;
+  border-bottom-right-radius: 4px;
 }
 
 .part-waveform {
-  flex: 1;
-  /* Fake placeholder for actual notes/waveform draw inside logic */
-  opacity: 0.5;
-  background: repeating-linear-gradient(90deg, transparent, transparent 4px, var(--ou-accent) 4px, var(--ou-accent) 5px);
-  margin-top: 2px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0.8;
+  /* Temporary fake white graphic representing voice notes */
+  background: repeating-linear-gradient(90deg, transparent, transparent 12px, rgba(255, 255, 255, 0.9) 12px, rgba(255, 255, 255, 0.9) 24px);
+  background-position: 0 60%;
+  background-size: 100% 3px;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 1;
 }
 </style>
