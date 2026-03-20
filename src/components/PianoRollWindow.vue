@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { VoiceNoteSummary } from '../types/openutau';
 
-const { state, closePianoRoll, performDrawLinearCurve, performUpdateCurve } = useOpenUtau();
+const { state, closePianoRoll, performDrawLinearCurve, performUpdateCurve, selectNote, performMoveNotes, insertNote, deleteCurrentNote, performResizeNotes, saveCurrentNote } = useOpenUtau();
 
 const NOTE_HEIGHT = 20; // Official defaults to slightly varying height, but let's use 20 usually
 const PIXELS_PER_TICK = 0.05;
@@ -27,11 +27,24 @@ const getKeyName = (index: number) => {
 };
 
 function getNoteStyle(note: VoiceNoteSummary) {
+  let pos = note.position;
+  let dur = note.duration;
+  let t = note.tone;
+
+  if (draggingNote.value.noteIndex === note.noteIndex) {
+    if (draggingNote.value.type === 'move') {
+      pos = draggingNote.value.currentPosition;
+      t = draggingNote.value.currentTone;
+    } else if (draggingNote.value.type === 'resize') {
+      dur = draggingNote.value.currentDuration;
+    }
+  }
+
   return {
-    top: `${(KEYS - 1 - note.tone) * NOTE_HEIGHT}px`,
+    top: `${(KEYS - 1 - t) * NOTE_HEIGHT}px`,
     height: `${NOTE_HEIGHT - 1}px`,
-    left: `${note.position * PIXELS_PER_TICK}px`,
-    width: `${Math.max(4, note.duration * PIXELS_PER_TICK)}px`
+    left: `${pos * PIXELS_PER_TICK}px`,
+    width: `${Math.max(4, dur * PIXELS_PER_TICK)}px`
   };
 }
 
@@ -59,7 +72,118 @@ function getNotesLocalCoords(e: MouseEvent) {
   };
 }
 
-function startPitchDraw(e: MouseEvent) {
+// --- Note Dragging Logic ---
+const draggingNote = ref({
+  noteIndex: -1,
+  type: null as 'move' | 'resize' | null,
+  startX: 0,
+  startY: 0,
+  startPosition: 0,
+  startTone: 0,
+  startDuration: 0,
+  currentPosition: 0,
+  currentTone: 0,
+  currentDuration: 0
+});
+
+function startNoteDrag(note: VoiceNoteSummary, e: MouseEvent) {
+  if (activeTool.value === 'erase' || e.button === 2) {
+    selectNote(note.noteIndex);
+    deleteCurrentNote();
+    return;
+  }
+  if (activeTool.value !== 'select') return;
+  selectNote(note.noteIndex);
+  draggingNote.value = {
+    noteIndex: note.noteIndex,
+    type: 'move',
+    startX: e.clientX,
+    startY: e.clientY,
+    startPosition: note.position,
+    startTone: note.tone,
+    startDuration: note.duration,
+    currentPosition: note.position,
+    currentTone: note.tone,
+    currentDuration: note.duration
+  };
+  window.addEventListener('mousemove', onNoteMouseMove);
+  window.addEventListener('mouseup', onNoteMouseUp);
+}
+
+function startNoteResize(note: VoiceNoteSummary, e: MouseEvent) {
+  if (activeTool.value !== 'select') return;
+  selectNote(note.noteIndex);
+  draggingNote.value = {
+    noteIndex: note.noteIndex,
+    type: 'resize',
+    startX: e.clientX,
+    startY: e.clientY,
+    startPosition: note.position,
+    startTone: note.tone,
+    startDuration: note.duration,
+    currentPosition: note.position,
+    currentTone: note.tone,
+    currentDuration: note.duration
+  };
+  window.addEventListener('mousemove', onNoteMouseMove);
+  window.addEventListener('mouseup', onNoteMouseUp);
+}
+
+function onNoteMouseMove(e: MouseEvent) {
+  if (draggingNote.value.noteIndex < 0) return;
+
+  const dx = e.clientX - draggingNote.value.startX;
+  const dy = e.clientY - draggingNote.value.startY;
+
+  if (draggingNote.value.type === 'move') {
+    const tickDelta = dx / PIXELS_PER_TICK;
+    const toneDelta = -Math.round(dy / NOTE_HEIGHT);
+
+    let newPosition = draggingNote.value.startPosition + tickDelta;
+    let newTone = draggingNote.value.startTone + toneDelta;
+    newTone = Math.max(0, Math.min(newTone, KEYS - 1));
+
+    draggingNote.value.currentPosition = Math.max(0, newPosition);
+    draggingNote.value.currentTone = newTone;
+  } else if (draggingNote.value.type === 'resize') {
+    const tickDelta = dx / PIXELS_PER_TICK;
+    let newDuration = draggingNote.value.startDuration + tickDelta;
+    
+    draggingNote.value.currentDuration = Math.max(15, newDuration);
+  }
+}
+
+async function onNoteMouseUp(e: MouseEvent) {
+  window.removeEventListener('mousemove', onNoteMouseMove);
+  window.removeEventListener('mouseup', onNoteMouseUp);
+  
+  if (draggingNote.value.noteIndex >= 0) {
+    if (draggingNote.value.type === 'move') {
+      const deltaTick = Math.round(draggingNote.value.currentPosition - draggingNote.value.startPosition);
+      const deltaTone = Math.round(draggingNote.value.currentTone - draggingNote.value.startTone);
+      if (deltaTick !== 0 || deltaTone !== 0) {
+        await performMoveNotes(deltaTick, deltaTone);
+      }
+    } else if (draggingNote.value.type === 'resize') {
+      const deltaDuration = Math.round(draggingNote.value.currentDuration - draggingNote.value.startDuration);
+      if (deltaDuration !== 0) {
+        await performResizeNotes(deltaDuration);
+      }
+    }
+  }
+  
+  draggingNote.value.noteIndex = -1;
+  draggingNote.value.type = null;
+}
+
+function onNotesAreaMouseDown(e: MouseEvent) {
+  if (activeTool.value === 'draw') {
+    const { x, y } = getNotesLocalCoords(e);
+    const position = Math.round(x / PIXELS_PER_TICK);
+    const tone = KEYS - 1 - Math.floor(y / NOTE_HEIGHT);
+    insertNote({ position, duration: 480, tone, lyric: 'a' });
+    return;
+  }
   if (activeTool.value !== 'draw_pitch') return;
   pitchIsDrawing.value = true;
   pitchDrawPoints.value = [getNotesLocalCoords(e)];
@@ -355,7 +479,7 @@ function handleNotesScroll(e: Event) {
                   d="M10.07,14.27C10.57,14.03 11.16,14.25 11.4,14.75L13.7,19.74L15.5,18.89L13.19,13.91C12.95,13.41 13.17,12.81 13.67,12.58L13.95,12.5L16.25,12.05L8,5.12V15.9L9.82,14.43L10.07,14.27M13.64,21.97C13.14,22.21 12.54,22 12.31,21.5L10.13,16.76L7.62,18.78C7.45,18.92 7.24,19 7,19A1,1 0 0,1 6,18V3A1,1 0 0,1 7,2C7.24,2 7.47,2.09 7.64,2.23L7.65,2.22L19.14,11.86C19.57,12.22 19.62,12.85 19.27,13.27C19.12,13.45 18.91,13.57 18.7,13.61L15.54,14.23L17.74,18.96C18,19.46 17.76,20.05 17.26,20.28L13.64,21.97Z" />
               </svg>
             </button>
-            <button class="tool-btn" title="画笔工具">
+            <button class="tool-btn" :class="{ active: activeTool === 'draw' }" @click="activeTool = 'draw'" title="画笔工具">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path
                   d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" />
@@ -367,7 +491,7 @@ function handleNotesScroll(e: Event) {
                   d="M14.1,9L15,9.9L5.9,19H5V18.1L14.1,9M17.7,3C17.5,3 17.2,3.1 17,3.3L15.2,5.1L18.9,8.9L20.7,7C21.1,6.6 21.1,6 20.7,5.6L18.4,3.3C18.2,3.1 17.9,3 17.7,3M14.1,6.2L3,17.2V21H6.8L17.8,9.9L14.1,6.2M7,2V5H10V7H7V10H5V7H2V5H5V2H7Z" />
               </svg>
             </button>
-            <button class="tool-btn" title="橡皮擦工具">
+            <button class="tool-btn" :class="{ active: activeTool === 'erase' }" @click="activeTool = 'erase'" title="橡皮擦工具">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path
                   d="M16.24,3.56L21.19,8.5C21.97,9.29 21.97,10.55 21.19,11.34L12,20.53C10.44,22.09 7.91,22.09 6.34,20.53L2.81,17C2.03,16.21 2.03,14.95 2.81,14.16L13.41,3.56C14.2,2.78 15.46,2.78 16.24,3.56M4.22,15.58L7.76,19.11C8.54,19.9 9.8,19.9 10.59,19.11L14.12,15.58L9.17,10.63L4.22,15.58Z" />
@@ -466,7 +590,7 @@ function handleNotesScroll(e: Event) {
         </div>
 
         <div class="pr-row-3 pr-col-1 pr-notes-area" ref="prNotesAreaRef" @scroll="handleNotesScroll"
-             @mousedown="startPitchDraw" @mousemove="drawPitch" @mouseup="stopPitchDraw" @mouseleave="stopPitchDraw">
+             @mousedown="onNotesAreaMouseDown" @mousemove="drawPitch" @mouseup="stopPitchDraw" @mouseleave="stopPitchDraw">
           <div class="notes-bg" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px`, height: `${KEYS * NOTE_HEIGHT}px` }">
             <div v-for="i in KEYS" :key="i" class="note-row-bg" :class="{ 'black-key-row': isBlackKey(KEYS - i) }"
               :style="{ height: `${NOTE_HEIGHT}px` }"></div>
@@ -482,8 +606,11 @@ function handleNotesScroll(e: Event) {
           </div>
           <div class="notes-layer">
             <div v-for="note in selectedNotes" :key="note.noteIndex" class="note-block"
-              :class="{ selected: state.selectedNoteIndex === note.noteIndex }" :style="getNoteStyle(note)">
+              :class="{ selected: state.selectedNoteIndex === note.noteIndex }" 
+              :style="getNoteStyle(note)"
+              @mousedown.stop="startNoteDrag(note, $event)" @contextmenu.prevent="">
               <span class="note-lyric">{{ note.lyric }}</span>
+              <div class="note-resize-handle" @mousedown.stop="startNoteResize(note, $event)"></div>
             </div>
           </div>
           <svg class="pitch-draw-layer" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px`, height: `${KEYS * NOTE_HEIGHT}px` }">
@@ -992,6 +1119,17 @@ function handleNotesScroll(e: Event) {
     white-space: nowrap;
     line-height: 1;
     margin-top: -1px;
+    pointer-events: none;
+  }
+
+  .note-resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    z-index: 20;
   }
 }
 
