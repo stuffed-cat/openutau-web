@@ -79,6 +79,8 @@ export interface VoiceNoteSummary {
   duration: number;
   lyric: string;
   tone: number;
+  pitchPoints?: NotePitchPoint[];
+  vibrato?: NoteVibrato;
 }
 
 export interface PartProperties {

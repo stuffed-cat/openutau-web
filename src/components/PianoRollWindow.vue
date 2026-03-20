@@ -2,8 +2,9 @@
 import { computed, ref } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { VoiceNoteSummary } from '../types/openutau';
+import { interpolateShape } from '../utils/math';
 
-const { state, closePianoRoll, performDrawLinearCurve, performUpdateCurve, selectNote, performMoveNotes, insertNote, deleteCurrentNote, performResizeNotes, saveCurrentNote } = useOpenUtau();
+const { state, selectedPart, closePianoRoll, performDrawLinearCurve, performUpdateCurve, selectNote, performMoveNotes, insertNote, deleteCurrentNote, performResizeNotes, saveCurrentNote } = useOpenUtau();
 
 const NOTE_HEIGHT = ref(20); // Official defaults to slightly varying height, but let's use 20 usually
 const PIXELS_PER_TICK = ref(0.05);
@@ -14,8 +15,57 @@ const TICKS_PER_MEASURE = TICKS_PER_BEAT * BEATS_PER_MEASURE;
 const visibleMeasures = 100; // Mock 100 measures for the timeline
 
 const selectedNotes = computed<VoiceNoteSummary[]>(() => {
-  const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+  const part = selectedPart.value;
   return part?.notes || [];
+});
+
+const pitchCurves = computed(() => {
+  if (!showPitch.value) return [];
+  const paths: { noteIndex: number, d: string, ctrlPoints: { x: number, y: number, shape: string, origX: number, origY: number }[] }[] = [];
+  const msToTicks = 0.96;
+
+  for (const note of selectedNotes.value) {
+    if (!note.pitchPoints || note.pitchPoints.length < 2) continue;
+    const pts = note.pitchPoints;
+    const points: { x: number, y: number, shape: string, origX: number, origY: number }[] = [];
+
+    const baseTick = note.position;
+    const baseTone = note.tone;
+
+    for (let i = 0; i < pts.length; i++) {
+        let pTick = baseTick + pts[i].x * msToTicks;
+        let pTone = baseTone + pts[i].y / 10;
+        
+        let py = (KEYS - pTone - 0.5) * NOTE_HEIGHT.value;
+        let px = pTick * PIXELS_PER_TICK.value;
+        points.push({ x: px, y: py, shape: pts[i].shape || 'l', origX: pts[i].x, origY: pts[i].y });
+    }
+
+    let d = '';
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i];
+        const p1 = points[i + 1];
+
+        if (i === 0) d += `M ${p0.x} ${p0.y} `;
+
+        if (p1.x - p0.x < 4) {
+            d += `L ${p1.x} ${p1.y} `;
+        } else {
+            let x0 = p0.x;
+            while(x0 < p1.x) {
+                let x1 = Math.min(x0 + 4, p1.x);
+                let ratio = (x1 - p0.x) / ((p1.x - p0.x) || 1);
+                let interpX = p0.origX + ratio * (p1.origX - p0.origX);
+                let interpY = interpolateShape(p0.origX, p1.origX, p0.origY, p1.origY, interpX, p0.shape);
+                let canvasY = (KEYS - (baseTone + interpY / 10) - 0.5) * NOTE_HEIGHT.value;
+                d += `L ${x1} ${canvasY} `;
+                x0 = x1;
+            }
+        }
+    }
+    paths.push({ noteIndex: note.noteIndex, d, ctrlPoints: points });
+  }
+  return paths;
 });
 
 const isBlackKey = (index: number) => [1, 3, 6, 8, 10].includes(index % 12);
@@ -56,6 +106,17 @@ const expCanvasRef = ref<HTMLElement | null>(null);
 const prNotesAreaRef = ref<HTMLElement | null>(null);
 
 const activeTool = ref('select');
+const showNoteParams = ref(false);
+
+// --- View Toggles ---
+const showTone = ref(true);
+const showVibrato = ref(true);
+const showPitch = ref(true);
+const showFinalPitch = ref(true);
+const showWaveform = ref(true);
+const showPhoneme = ref(true);
+const showExpressions = ref(true);
+const snapOn = ref(true);
 
 // --- Pitch Drawing Logic ---
 const pitchIsDrawing = ref(false);
@@ -281,7 +342,7 @@ function stopPitchDraw() {
         ys.push(val);
       }
 
-      const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+      const part = selectedPart.value;
       const curve = part?.curves?.find(c => c.abbr.toLowerCase() === 'pitd');
       
       let mergedXs = curve?.xs ? [...curve.xs] : [];
@@ -401,7 +462,7 @@ function stopExpDraw() {
           ys.push(val);
         }
 
-        const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+        const part = selectedPart.value;
         const curve = part?.curves?.find(c => c.abbr.toLowerCase() === activeExpAbbr.value.toLowerCase());
         
         let mergedXs = curve?.xs ? [...curve.xs] : [];
@@ -448,7 +509,7 @@ function pointsToSvgPath(points: {x: number, y: number}[]) {
 const currentPitchPath = computed(() => pointsToSvgPath(pitchDrawPoints.value));
 
 const activeExpCurvePath = computed(() => {
-  const part = state.parts.find(p => p.partNo === state.selectedPartNo);
+  const part = selectedPart.value;
   const curve = part?.curves?.find(c => c.abbr.toLowerCase() === activeExpAbbr.value.toLowerCase());
   const desc = currentExpDescriptor.value;
   const height = 150;
@@ -506,7 +567,7 @@ function handleNotesScroll(e: Event) {
         </div>
       </div>
 
-      <div class="pr-grid">
+      <div class="pr-grid" :class="{ 'show-properties': showNoteParams }">
         <!-- Row 0: Toolbar -->
         <div class="pr-toolbar pr-row-0 pr-col-span">
           <div class="menu-items">
@@ -578,18 +639,57 @@ function handleNotesScroll(e: Event) {
             </button>
             <div class="toolbar-divider"></div>
             <!-- View toggles etc -->
-            <button class="tool-btn">Tone</button>
-            <button class="tool-btn">Vib</button>
-            <button class="tool-btn">Pit</button>
-            <button class="tool-btn">Wave</button>
-            <button class="tool-btn">Phn</button>
-            <button class="tool-btn active">Exp</button>
+            <button class="tool-btn" :class="{ active: showTone }" @click="showTone = !showTone" title="开关音符音 (Play Tone)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="currentColor">
+                <path transform="scale(0.6) translate(-2, -2)" d="M21,3V15.5A3.5,3.5 0 0,1 17.5,19A3.5,3.5 0 0,1 14,15.5A3.5,3.5 0 0,1 17.5,12C18.04,12 18.55,12.12 19,12.34V6.47L9,8.6V17.5A3.5,3.5 0 0,1 5.5,21A3.5,3.5 0 0,1 2,17.5A3.5,3.5 0 0,1 5.5,14C6.04,14 6.55,14.12 7,14.34V6L21,3Z" />
+              </svg>
+            </button>
+            <button class="tool-btn" :class="{ active: showVibrato }" @click="showVibrato = !showVibrato" title="显示颤音 (Show Vibrato)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path transform="translate(9, 9)" d="M-6.5 1 L-6 1.5 L-4.5 0 L-2 2.5 L0.5 0 L3 2.5 L6.5 -1 L6 -1.5 L4.5 0 L2 -2.5 L-0.5 0 L-3 -2.5 Z"/>
+              </svg>
+            </button>
+            <button class="tool-btn" :class="{ active: showPitch }" @click="showPitch = !showPitch" title="显示弯音 (Show Pitch)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="4" cy="13" r="2" />
+                <circle cx="14" cy="5" r="2" />
+                <path d="M 6.5 11.5 L 8 11.5 L 8.5 11 L 9.5 7 L 10 6.5 L 11.5 6.5"/>
+              </svg>
+            </button>
+            <button class="tool-btn" :class="{ active: showFinalPitch }" @click="showFinalPitch = !showFinalPitch" title="显示最终音高线 (Show Final Pitch)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M 5.5 11.5 L 8 11.5 L 8.5 11 L 9.5 7 L 10 6.5 L 12.5 6.5"/>
+              </svg>
+            </button>
+            <button class="tool-btn" :class="{ active: showWaveform }" @click="showWaveform = !showWaveform" title="显示波形 (Show Waveform)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="currentColor">
+                <path transform="scale(0.67) translate(-2, -2)" d="M22 12L20 13L19 14L18 13L17 16L16 13L15 21L14 13L13 15L12 13L11 17L10 13L9 22L8 13L7 19L6 13L5 14L4 13L2 12L4 11L5 10L6 11L7 5L8 11L9 2L10 11L11 7L12 11L13 9L14 11L15 3L16 11L17 8L18 11L19 10L20 11L22 12Z"/>
+              </svg>
+            </button>
+            <button class="tool-btn" :class="{ active: showPhoneme }" @click="showPhoneme = !showPhoneme" title="显示音素 (Show Phoneme)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M 3 13 L 6 5.5 L 12 5.5 L 15 13"/>
+              </svg>
+            </button>
+            <button class="tool-btn" :class="{ active: showExpressions }" @click="showExpressions = !showExpressions" title="显示表情 (Show Expressions)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="6" cy="6" r="2" />
+                <circle cx="12" cy="8" r="2" />
+                <path d="M 6 8 V 13.62"/>
+                <path d="M 12 10 V 13.62"/>
+              </svg>
+            </button>
             <div class="toolbar-divider"></div>
-            <button class="tool-btn">Snap: 1/4</button>
-            <button class="tool-btn">Key: C (Do)</button>
+            <button class="tool-btn" :class="{ active: snapOn }" @click="snapOn = !snapOn" title="吸附开关 (Snap)">
+              <svg viewBox="0 0 18 18" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M 4.5 13.5 L 7.5 13.5 L 7.5 9.5 A 1,1 0 1 1 10.5,9.5 L 10.5 13.5 L 13.5 13.5 L 13.5 8.5 A 1,1 0 1 0 4.5,8.5 Z"/>
+              </svg>
+            </button>
+            <button class="tool-btn" style="width: auto; padding: 0 4px; font-size: 10px; font-family: monospace;">Snap: 1/4</button>
+            <button class="tool-btn" style="width: auto; padding: 0 4px; font-size: 10px; font-family: monospace;">Key: C</button>
           </div>
           <div class="toolbar-right">
-            <button class="tool-btn" title="Show Note Params">
+            <button class="tool-btn" title="显示音符属性 (Show Note Params)" :class="{ active: showNoteParams }" @click="showNoteParams = !showNoteParams">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path
                   d="M3,17V19H9V17H3M3,5V7H13V5H3M13,21V19H21V17H13V15H11V21H13M7,9V11H3V13H7V15H9V9H7M21,13V11H11V13H21M15,9H17V7H21V5H17V3H15V9Z" />
@@ -664,6 +764,10 @@ function handleNotesScroll(e: Event) {
             </div>
           </div>
           <svg class="pitch-draw-layer" :style="{ width: `${visibleMeasures * TICKS_PER_MEASURE * PIXELS_PER_TICK}px`, height: `${KEYS * NOTE_HEIGHT}px` }">
+            <g v-for="curve in pitchCurves" :key="'curve-'+curve.noteIndex">
+              <path :d="curve.d" stroke="#ff7c7c" stroke-width="2" fill="none" class="note-pitch-curve" stroke-linecap="round" stroke-linejoin="round" />
+              <circle v-for="(pt, idx) in curve.ctrlPoints" :key="'pt-'+idx" :cx="pt.x" :cy="pt.y" r="2.5" fill="#202122" stroke="#ff7c7c" stroke-width="1.5" />
+            </g>
             <path v-for="(pathD, i) in pitchDrawnPaths.map(pointsToSvgPath)" :key="'p'+i" :d="pathD" stroke="#ff7c7c" stroke-width="2" fill="none" opacity="0.8" stroke-linecap="round" stroke-linejoin="round" />
             <path v-if="currentPitchPath" :d="currentPitchPath" stroke="#ff7c7c" stroke-width="2" fill="none" opacity="0.8" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -702,6 +806,48 @@ function handleNotesScroll(e: Event) {
           </svg>
         </div>
         <div class="pr-row-5 pr-col-2 pr-exp-vscrollbar">
+        </div>
+
+        <!-- Row 1-5 Column 3: Note Properties (Portamento & Connections) -->
+        <div class="pr-note-properties-area" v-if="showNoteParams">
+          <div class="properties-header">Note Properties</div>
+          <div class="properties-content">
+            <div class="expander">
+              <div class="expander-header">Portamento (滑音)</div>
+              <div class="expander-body">
+                <div class="prop-row">
+                  <label>Length</label>
+                  <input type="number" value="120" />
+                  <input type="range" class="fader" min="2" max="320" value="120" />
+                </div>
+                <div class="prop-row">
+                  <label>Start</label>
+                  <input type="number" value="0" />
+                  <input type="range" class="fader" min="-200" max="200" value="0" />
+                </div>
+                <div class="prop-row">
+                  <label>Curve Shape</label>
+                  <select>
+                    <option>Ease In/Out</option>
+                    <option>Linear</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="expander">
+              <div class="expander-header">Vibrato (颤音)</div>
+              <div class="expander-body">
+                <div class="prop-row"><label>Length</label><input type="range" class="fader" min="0" max="100" value="75" /></div>
+                <div class="prop-row"><label>Period</label><input type="range" class="fader" min="5" max="500" value="175" /></div>
+                <div class="prop-row"><label>Depth</label><input type="range" class="fader" min="5" max="200" value="50" /></div>
+                <div class="prop-row"><label>In</label><input type="range" class="fader" min="0" max="100" value="10" /></div>
+                <div class="prop-row"><label>Out</label><input type="range" class="fader" min="0" max="100" value="10" /></div>
+                <div class="prop-row"><label>Shift</label><input type="range" class="fader" min="0" max="100" value="0" /></div>
+                <div class="prop-row"><label>Drift</label><input type="range" class="fader" min="-100" max="100" value="0" /></div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -796,6 +942,11 @@ function handleNotesScroll(e: Event) {
   /* Rows: Menu(24) | ScrollH(24) | Timeline(24) | Notes(*) | Splitter(6) | Expressions(150) */
   grid-template-rows: 24px 24px 24px 1fr 6px 150px;
   background: #2b2d30;
+  transition: grid-template-columns 0.2s;
+}
+
+.pr-grid.show-properties {
+  grid-template-columns: 60px 1fr 24px 250px;
 }
 
 .pr-col-0 {
@@ -1244,6 +1395,71 @@ function handleNotesScroll(e: Event) {
     .tick-beat {
       position: absolute; top: 0; bottom: 0; width: 0;
       border-left: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+/* Note Properties Area */
+.pr-note-properties-area {
+  grid-row: 2 / -1;
+  grid-column: 4;
+  background: #333333;
+  border-left: 1px solid #111;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  color: #ccc;
+  font-size: 12px;
+
+  .properties-header {
+    padding: 8px;
+    font-weight: bold;
+    background: #3c3f41;
+    border-bottom: 1px solid #222;
+  }
+
+  .expander {
+    border-bottom: 1px solid #222;
+    
+    .expander-header {
+      padding: 6px 8px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 500;
+      &:hover { background: rgba(255, 255, 255, 0.1); }
+    }
+
+    .expander-body {
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      .prop-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        label {
+          width: 50px;
+          flex-shrink: 0;
+        }
+
+        input[type="number"], select {
+          background: #2b2d30;
+          color: white;
+          border: 1px solid #444;
+          border-radius: 2px;
+          padding: 2px 4px;
+          width: 60px;
+        }
+
+        input[type="range"] {
+          flex: 1;
+          height: 4px;
+          accent-color: #60a0cf;
+        }
+      }
     }
   }
 }
