@@ -90,6 +90,14 @@ export function setTrackVolume(trackNo: number, volume: number) {
   });
 }
 
+export function addPart(file: File, trackIndex: number, position: number = 0, duration: number = 1920) {
+  return requestBlob('/api/project/parts/add', {
+    method: 'POST',
+    body: toFormData(file),
+    query: { trackIndex, position, duration },
+  });
+}
+
 export function addTrack(file: File, trackIndex?: number) {
   return requestBlob('/api/project/tracks/add', {
     method: 'POST',

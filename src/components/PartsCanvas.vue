@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { useOpenUtau } from '../composables/useOpenUtau';
 import type { PartProperties } from '../types/openutau';
 
-const { state, selectPart } = useOpenUtau();
+const { state, selectPart, performAddPart } = useOpenUtau();
 
 const TRACK_HEIGHT = 104; // Same as TrackHeaderCanvas
 const PIXELS_PER_TICK = 0.05; // Zoom scale simulation
@@ -22,6 +22,23 @@ function onScroll(e: Event) {
   state.scrollX = target.scrollLeft;
   state.scrollY = target.scrollTop;
 }
+
+function onTrackClick(event: MouseEvent, trackIndex: number) {
+  if (trackIndex >= state.tracks.length) return; // Ignore if clicked on empty space beyond tracks
+
+  // Calculate position in ticks
+  const target = event.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  const offsetX = event.clientX - rect.left;
+  
+  const positionTick = Math.max(0, Math.floor(offsetX / PIXELS_PER_TICK));
+  
+  // Snap to nearest beat (480 ticks = 1 quarter down)
+  const snapTick = Math.floor(positionTick / 480) * 480;
+  
+  // Default duration = 1920 (1 measure of 4/4)
+  performAddPart(trackIndex, snapTick, 1920);
+}
 </script>
 
 <template>
@@ -37,6 +54,7 @@ function onScroll(e: Event) {
           :key="i"
           class="track-stripe"
           :style="{ height: `${TRACK_HEIGHT}px` }"
+          @click="onTrackClick($event, i - 1)"
         ></div>
       </div>
       
@@ -47,7 +65,7 @@ function onScroll(e: Event) {
         class="part-block"
         :class="{ selected: state.selectedPartNo === part.partNo }"
         :style="getPartStyle(part)"
-        @click="selectPart(part.partNo)"
+        @click.stop="selectPart(part.partNo)"
       >
         <span class="part-name">{{ part.name || `Part ${part.partNo}` }}</span>
         <div class="part-waveform"></div>
@@ -105,7 +123,6 @@ function onScroll(e: Event) {
   left: 0;
   right: 0;
   bottom: 0;
-  pointer-events: none;
   z-index: 0;
 }
 

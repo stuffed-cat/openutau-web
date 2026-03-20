@@ -1,6 +1,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import {
   addTrack,
+  addPart,
   addNote,
   createNewProject,
   downloadSession,
@@ -84,7 +85,25 @@ export function useOpenUtau() {
     try {
       const blob = await addTrack(state.currentFile);
       state.currentFile = blobToFile(blob, state.currentFile.name);
-      await reloadProjectState();
+      await reloadProject();
+    } catch (error) {
+      state.error = toMessage(error);
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  async function performAddPart(trackIndex: number, position: number = 0, duration: number = 1920) {
+    if (!state.currentFile) {
+      state.error = '请先打开工程后再添加段落';
+      return;
+    }
+    state.busy = true;
+    state.error = null;
+    try {
+      const blob = await addPart(state.currentFile, trackIndex, position, duration);
+      state.currentFile = blobToFile(blob, state.currentFile.name);
+      await reloadProject();
     } catch (error) {
       state.error = toMessage(error);
     } finally {
@@ -577,6 +596,7 @@ export function useOpenUtau() {
     seekProject,
     toggleSingerManager,
     performAddTrack,
+    performAddPart,
   };
 }
 
