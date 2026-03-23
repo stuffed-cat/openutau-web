@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Content Include="main.js" />
+    <WasmExtraFilesToDeploy Include="index.html" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "build:wasm": "dotnet build OpenUtau.Web/OpenUtau.Web.Browser/OpenUtau.Web.Browser.csproj -c Release && mkdir -p public/openutau && cp -r OpenUtau.Web/OpenUtau.Web.Browser/bin/Release/net8.0-browser/browser-wasm/AppBundle/* public/openutau/",
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
