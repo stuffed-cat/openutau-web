@@ -5,3 +5,6 @@ node_modules
 *.local
 *.log
 dist/*
+OpenUtau.Web/OpenUtau.Web.Browser/obj
+OpenUtau.Web/OpenUtau.Web.Browser/bin
+*.py
