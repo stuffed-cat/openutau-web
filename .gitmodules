@@ -1,3 +1,6 @@
 [submodule "third_party/backend-openutau"]
 	path = third_party/backend-openutau
 	url = https://gitfox.studio/gitfox/tts/backend-openutau.git
+[submodule "third_party/openutau"]
+	path = third_party/openutau
+	url = https://gitfox.studio/gitfox/upstream/openutau.git
