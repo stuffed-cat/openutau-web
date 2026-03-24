@@ -1,45 +1,23 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
   <PropertyGroup>
-    <WasmBuildNative>false</WasmBuildNative>
-    <WasmAppEnableWasmPInvokeTable>false</WasmAppEnableWasmPInvokeTable>
     <TargetFramework>net8.0-browser</TargetFramework>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
-    <WasmMainJSPath>main.js</WasmMainJSPath>
-    <OutputType>Exe</OutputType>
-    <StartupObject>Program</StartupObject>
-    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
-    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <WasmEnableSIMD>false</WasmEnableSIMD>
+    <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
+    <WasmBuildNative>false</WasmBuildNative>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="main.js" />
-    <WasmExtraFilesToDeploy Include="index.html" />
+    <PackageReference Include="Avalonia.Browser" Version="11.0.10" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.2.4" />
-    <PackageReference Include="Avalonia.Browser" Version="11.2.4" />
-    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.4" />
-    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.2.4" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.4" />
-    <PackageReference Include="Material.Avalonia" Version="3.13.3" />
-    <PackageReference Include="ReactiveUI.Fody" Version="19.5.41" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.2.4" />
-    <PackageReference Include="Serilog" Version="4.1.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageReference Include="System.Text.Json" Version="9.0.2" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.4" ExcludeAssets="all" />
+    <ProjectReference Include="..\..\third_party\openutau\OpenUtau\OpenUtau.csproj" AdditionalProperties="OutputType=Library" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\third_party\openutau\OpenUtau\OpenUtau.csproj" />
-  </ItemGroup>
-
-  <Target Name="RemoveWin32FromWasm" BeforeTargets="WasmBuildApp">
-    <ItemGroup>
-      <WasmAssembliesToBundle Remove="@(WasmAssembliesToBundle)" Condition="'%(FileName)' == 'Avalonia.Win32' or '%(FileName)' == 'Avalonia.Desktop'" />
-    </ItemGroup>
+  <!-- Prevent copying OpenUtau local resources strictly if they crash WASM -->
+  <Target Name="RemoveCoreLocalAssets" BeforeTargets="Build">
+    <Message Text="Building Avalonia Wasm Shell for OpenUtau..." />
   </Target>
 </Project>
