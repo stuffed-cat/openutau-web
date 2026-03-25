@@ -3,13 +3,11 @@
     <TargetFramework>net8.0-browser</TargetFramework>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <WasmEnableSIMD>false</WasmEnableSIMD>
-    <WasmEnableExceptionHandling>true</WasmEnableExceptionHandling>
-    <WasmBuildNative>false</WasmBuildNative>
+    <RunAOTCompilation>false</RunAOTCompilation>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia.Browser" Version="11.0.10" />
+    <PackageReference Include="Avalonia.Browser" Version="11.2.4" />
   </ItemGroup>
 
   <ItemGroup>
