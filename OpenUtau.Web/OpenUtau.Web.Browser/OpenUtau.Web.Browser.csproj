@@ -10,6 +10,8 @@
     <PackageReference Include="Avalonia.Browser" Version="11.2.4" />
   </ItemGroup>
 
+
+
   <ItemGroup>
     <ProjectReference Include="..\..\third_party\openutau\OpenUtau\OpenUtau.csproj" AdditionalProperties="OutputType=Library" />
   </ItemGroup>
@@ -18,4 +20,7 @@
   <Target Name="RemoveCoreLocalAssets" BeforeTargets="Build">
     <Message Text="Building Avalonia Wasm Shell for OpenUtau..." />
   </Target>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
 </Project>

@@ -31,6 +31,12 @@ internal partial class Program
 
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
+            .With(new Avalonia.Media.FontManagerOptions {
+                DefaultFamilyName = "avares://OpenUtau.Web.Browser/Assets/Fonts/DroidSansFallbackFull.ttf#Droid Sans Fallback",
+                FontFallbacks = new[] {
+                    new Avalonia.Media.FontFallback { FontFamily = new Avalonia.Media.FontFamily("avares://OpenUtau.Web.Browser/Assets/Fonts/DroidSansFallbackFull.ttf#Droid Sans Fallback") }
+                }
+            })
             .AfterSetup(_ => {
                 // 接管底层核心系统与网络路由API
                 OpenUtau.Web.Browser.CoreApiBridge.Initialize();
